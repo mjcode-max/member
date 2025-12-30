@@ -7,23 +7,23 @@ wire:
 
 # 运行应用
 run:
-	go run cmd/main.go server
+	go run ./cmd server
 
 # 构建应用
 build: wire
-	go build -o bin/server cmd/main.go
+	go build -o bin/server ./cmd
 
 # 数据库迁移 - 执行迁移
 migrate-up:
-	go run cmd/main.go migrate up
+	go run ./cmd migrate up
 
 # 数据库迁移 - 回滚迁移
 migrate-down:
-	go run cmd/main.go migrate down
+	go run ./cmd migrate down
 
 # 数据库迁移 - 查看状态
 migrate-status:
-	go run cmd/main.go migrate status
+	go run ./cmd migrate status
 
 # 下载依赖
 deps:
@@ -39,7 +39,7 @@ package: clean
 	@echo "开始打包..."
 	@mkdir -p build/bin build/configs build/dist
 	@echo "构建后端二进制..."
-	@go build -ldflags="-s -w" -o build/bin/server cmd/main.go
+	@go build -ldflags="-s -w" -o build/bin/server ./cmd
 	@echo "复制配置文件..."
 	@cp -r configs/* build/configs/
 	@echo "复制文档和脚本..."

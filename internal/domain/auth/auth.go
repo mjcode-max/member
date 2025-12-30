@@ -6,8 +6,31 @@ import (
 
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
-	repository "member-pre/internal/infrastructure/persistence/repository"
 )
+
+// UserRepository 用户仓储接口（定义在 domain 层，由 infrastructure 层实现）
+type UserRepository interface {
+	// FindByUsername 根据用户名查找用户
+	FindByUsername(username string) (*User, error)
+
+	// FindByID 根据ID查找用户
+	FindByID(id uint) (*User, error)
+
+	// Create 创建用户
+	Create(user *User) error
+
+	// Update 更新用户
+	Update(user *User) error
+
+	// SaveToken 保存token到Redis
+	SaveToken(userID uint, token string, expiresIn int64) error
+
+	// DeleteToken 删除token
+	DeleteToken(token string) error
+
+	// ValidateToken 验证token是否有效
+	ValidateToken(token string) (uint, error)
+}
 
 // User 用户实体
 type User struct {
@@ -50,13 +73,13 @@ type Claims struct {
 
 // Service 认证服务
 type Service struct {
-	repo         repository.UserRepository
+	repo         UserRepository
 	jwtSecret    string
 	tokenExpires time.Duration
 }
 
 // NewService 创建认证服务
-func NewService(repo repository.UserRepository, jwtSecret string, tokenExpires time.Duration) *Service {
+func NewService(repo UserRepository, jwtSecret string, tokenExpires time.Duration) *Service {
 	return &Service{
 		repo:         repo,
 		jwtSecret:    jwtSecret,

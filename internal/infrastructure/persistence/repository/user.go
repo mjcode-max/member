@@ -13,30 +13,6 @@ import (
 	"member-pre/internal/infrastructure/persistence/redis"
 )
 
-// UserRepository 用户仓储接口
-type UserRepository interface {
-	// FindByUsername 根据用户名查找用户
-	FindByUsername(username string) (*auth.User, error)
-
-	// FindByID 根据ID查找用户
-	FindByID(id uint) (*auth.User, error)
-
-	// Create 创建用户
-	Create(user *auth.User) error
-
-	// Update 更新用户
-	Update(user *auth.User) error
-
-	// SaveToken 保存token到Redis
-	SaveToken(userID uint, token string, expiresIn int64) error
-
-	// DeleteToken 删除token
-	DeleteToken(token string) error
-
-	// ValidateToken 验证token是否有效
-	ValidateToken(token string) (uint, error)
-}
-
 // UserModel 用户模型（数据库表结构）
 type UserModel struct {
 	ID        uint   `gorm:"primaryKey"`
@@ -90,7 +66,7 @@ type userRepository struct {
 }
 
 // NewUserRepository 创建用户仓储
-func NewUserRepository(db *mysql.DB, rdb *redis.Client) UserRepository {
+func NewUserRepository(db *mysql.DB, rdb *redis.Client) auth.UserRepository {
 	return &userRepository{
 		db:    db,
 		redis: rdb,
