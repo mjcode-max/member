@@ -8,10 +8,34 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"member-pre/internal/domain/auth"
+	"member-pre/internal/infrastructure/persistence/model"
 	"member-pre/internal/infrastructure/persistence/mysql"
 	"member-pre/internal/infrastructure/persistence/redis"
 )
+
+// UserRepository 用户仓储接口（定义在 repository 层，由 domain 层引用）
+type UserRepository interface {
+	// FindByUsername 根据用户名查找用户
+	FindByUsername(username string) (*model.User, error)
+
+	// FindByID 根据ID查找用户
+	FindByID(id uint) (*model.User, error)
+
+	// Create 创建用户
+	Create(user *model.User) error
+
+	// Update 更新用户
+	Update(user *model.User) error
+
+	// SaveToken 保存token到Redis
+	SaveToken(userID uint, token string, expiresIn int64) error
+
+	// DeleteToken 删除token
+	DeleteToken(token string) error
+
+	// ValidateToken 验证token是否有效
+	ValidateToken(token string) (uint, error)
+}
 
 // UserModel 用户模型（数据库表结构）
 type UserModel struct {
@@ -32,8 +56,8 @@ func (UserModel) TableName() string {
 }
 
 // ToEntity 转换为领域实体
-func (m *UserModel) ToEntity() *auth.User {
-	return &auth.User{
+func (m *UserModel) ToEntity() *model.User {
+	return &model.User{
 		ID:        m.ID,
 		Username:  m.Username,
 		Password:  m.Password,
@@ -47,7 +71,7 @@ func (m *UserModel) ToEntity() *auth.User {
 }
 
 // FromEntity 从领域实体创建模型
-func (m *UserModel) FromEntity(u *auth.User) {
+func (m *UserModel) FromEntity(u *model.User) {
 	m.ID = u.ID
 	m.Username = u.Username
 	m.Password = u.Password
@@ -66,7 +90,7 @@ type userRepository struct {
 }
 
 // NewUserRepository 创建用户仓储
-func NewUserRepository(db *mysql.DB, rdb *redis.Client) auth.UserRepository {
+func NewUserRepository(db *mysql.DB, rdb *redis.Client) UserRepository {
 	return &userRepository{
 		db:    db,
 		redis: rdb,
@@ -74,7 +98,7 @@ func NewUserRepository(db *mysql.DB, rdb *redis.Client) auth.UserRepository {
 }
 
 // FindByUsername 根据用户名查找用户
-func (r *userRepository) FindByUsername(username string) (*auth.User, error) {
+func (r *userRepository) FindByUsername(username string) (*model.User, error) {
 	var model UserModel
 	if err := r.db.Where("username = ?", username).First(&model).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -86,7 +110,7 @@ func (r *userRepository) FindByUsername(username string) (*auth.User, error) {
 }
 
 // FindByID 根据ID查找用户
-func (r *userRepository) FindByID(id uint) (*auth.User, error) {
+func (r *userRepository) FindByID(id uint) (*model.User, error) {
 	var model UserModel
 	if err := r.db.First(&model, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -98,14 +122,14 @@ func (r *userRepository) FindByID(id uint) (*auth.User, error) {
 }
 
 // Create 创建用户
-func (r *userRepository) Create(user *auth.User) error {
+func (r *userRepository) Create(user *model.User) error {
 	model := &UserModel{}
 	model.FromEntity(user)
 	return r.db.Create(model).Error
 }
 
 // Update 更新用户
-func (r *userRepository) Update(user *auth.User) error {
+func (r *userRepository) Update(user *model.User) error {
 	model := &UserModel{}
 	model.FromEntity(user)
 	return r.db.Save(model).Error
