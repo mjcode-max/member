@@ -15,160 +15,38 @@
 
 ## 项目结构
 
-```
-member-pre/
-├── cmd/server/          # 应用入口
-├── internal/            # 内部代码
-│   ├── domain/          # 领域模块（自行组织）
-│   ├── infrastructure/  # 基础设施层
-│   │   ├── config/      # 配置管理
-│   │   ├── logger/      # 日志
-│   │   ├── persistence/ # 持久化
-│   │   │   ├── mysql/   # MySQL
-│   │   │   └── redis/   # Redis
-│   │   ├── http/        # HTTP 服务器
-│   │   └── wire.go      # Wire 依赖注入
-│   └── interfaces/      # 接口层
-│       └── http/        # HTTP 接口
-├── configs/             # 配置文件
-├── pkg/                 # 公共包
-│   ├── errors/          # 错误处理
-│   ├── utils/           # 工具函数
-│   └── validator/       # 验证器
-└── web/                 # 前端代码
-```
+项目采用 DDD 分层架构，主要包含以下模块：
+
+- **domain**: 领域层，包含业务逻辑和领域模型
+- **infrastructure**: 基础设施层，包含数据库、缓存、配置等基础设施实现
+- **interfaces**: 接口层，包含 HTTP 接口、路由、处理器等
+- **pkg**: 公共工具包，包含错误处理、工具函数、验证器等
+- **web**: 前端代码，包含管理端和移动端应用
 
 ## 快速开始
 
-### 1. 安装依赖
+1. 安装项目依赖
+2. 安装并配置 Wire 依赖注入工具
+3. 配置数据库连接信息（MySQL 和 Redis）
+4. 执行数据库迁移
+5. 启动应用服务器
 
-```bash
-go mod download
-go mod tidy
-```
+详细安装和配置说明请参考 `docs/INSTALL.md`。
 
-### 2. 安装 Wire
+## 主要功能
 
-```bash
-go install github.com/google/wire/cmd/wire@latest
-```
-
-### 3. 生成 Wire 代码
-
-```bash
-make wire
-# 或者
-cd internal/infrastructure && wire
-```
-
-### 4. 配置数据库
-
-编辑 `configs/config.yaml`，配置 MySQL 和 Redis 连接信息。
-
-### 5. 运行应用
-
-```bash
-make run
-# 或者
-go run cmd/server/main.go server
-```
-
-### 6. 数据库迁移
-
-```bash
-# 执行迁移
-make migrate-up
-# 或
-go run cmd/server/main.go migrate up
-
-# 回滚迁移
-make migrate-down
-# 或
-go run cmd/server/main.go migrate down
-
-# 查看迁移状态
-make migrate-status
-# 或
-go run cmd/server/main.go migrate status
-```
-
-### 7. 构建应用
-
-```bash
-make build
-```
+- 用户认证与授权
+- 会员管理
+- 预约管理
+- 支付管理
+- 门店管理
+- 员工管理
+- 数据报表
 
 ## 配置说明
 
-配置文件位于 `configs/config.yaml`，包含以下配置：
+系统配置文件位于 `configs/config.yaml`，包含服务器、数据库、缓存和日志等配置项。
 
-- **server**: 服务器配置（端口、模式等）
-- **database**: MySQL 数据库配置
-- **redis**: Redis 配置
-- **log**: 日志配置
+## 开发说明
 
-## 开发指南
-
-### 添加新的路由
-
-1. 在 `internal/interfaces/http/` 下创建路由文件
-2. 实现 `Router` 接口
-3. 在 `router.go` 中注册路由
-
-### 添加领域模块
-
-在 `internal/domain/` 目录下自行组织领域模块代码。
-
-### 使用数据库
-
-通过 Wire 注入的 `*mysql.DB` 实例使用 GORM 操作数据库。
-
-### 使用 Redis
-
-通过 Wire 注入的 `*redis.Client` 实例操作 Redis。
-
-### 使用日志
-
-通过 Wire 注入的 `*logger.ZapLogger` 实例记录日志。
-
-## 命令行工具 (Cobra)
-
-项目使用 Cobra 管理命令行，支持以下命令：
-
-- `server`: 启动HTTP服务器
-  ```bash
-  go run cmd/server/main.go server
-  ```
-
-- `migrate`: 数据库迁移
-  - `migrate up`: 执行所有待执行的迁移
-  - `migrate down`: 回滚最后一次迁移
-  - `migrate status`: 查看迁移状态
-
-所有命令都支持 `--config` 或 `-c` 参数指定配置文件路径。
-
-## Makefile 命令
-
-- `make wire`: 生成 Wire 代码
-- `make run`: 运行应用（server命令）
-- `make build`: 构建应用
-- `make migrate-up`: 执行数据库迁移
-- `make migrate-down`: 回滚数据库迁移
-- `make migrate-status`: 查看迁移状态
-- `make deps`: 下载并整理依赖
-- `make wire-init`: 安装 Wire 工具
-
-## 工具包说明
-
-### pkg/errors
-统一的错误处理包，提供错误码和错误类型定义。
-
-### pkg/utils
-工具函数包，包含：
-- `string.go`: 字符串处理工具
-- `time.go`: 时间处理工具
-- `response.go`: HTTP响应工具
-
-### pkg/validator
-数据验证包，提供常用的验证方法。
-
+项目使用 Wire 进行依赖注入，使用 Cobra 管理命令行工具，支持数据库迁移、服务启动等操作。详细开发规范请参考 `docs/AI_NOTICE.md`。
