@@ -12,7 +12,7 @@ type RouteRegistrar interface {
 
 // SetupRoutes 设置路由
 // 接收路由注册器列表，通过 Wire 注入
-func SetupRoutes(engine *gin.Engine, registrars ...RouteRegistrar) {
+func SetupRoutes(engine *gin.Engine, registrars []RouteRegistrar) {
 	// API路由组
 	api := engine.Group("/api/v1")
 	{

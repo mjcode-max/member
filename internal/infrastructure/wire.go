@@ -14,13 +14,12 @@ import (
 	pkgLogger "member-pre/pkg/logger"
 
 	"member-pre/internal/domain"
+	"member-pre/internal/domain/auth"
 	"member-pre/internal/infrastructure/repository"
 )
 
-// 类型别名，用于 Wire 依赖注入时区分不同的 string 和 int 类型
+// 类型别名，用于 Wire 依赖注入时区分不同的 string 类型
 type ConfigPath string
-type JWTSecret string
-type TokenExpires int
 
 // LoadConfig 加载配置（包装config.Load，避免string类型冲突）
 func LoadConfig(cfgPath ConfigPath) (*config.Config, error) {
@@ -33,20 +32,17 @@ func InitializeApp(cfgPath ConfigPath) (*App, error) {
 	wire.Build(
 		// 基础设施层
 		LoadConfig, // 加载配置（接受ConfigPath类型）
-		NewLogger,
-		ProvideLogger,           // 将ZapLogger转换为pkg/logger.Logger接口
-		ProvideJWTSecret,        // 提供JWT密钥（类型别名）
-		ProvideAuthJWTSecret,    // 将JWTSecret转换为string（供domain层使用）
-		ProvideTokenExpires,     // 提供Token过期时间（类型别名）
-		ProvideAuthTokenExpires, // 将TokenExpires转换为int（供domain层使用）
+		// 绑定配置到接口
+		wire.Bind(new(auth.IAuthConfig), new(*config.Config)),
+		NewLogger, // 创建日志实例，直接返回logger.Logger接口
 		database.NewDatabase,
 		persistence.NewClient,
 		repository.WireRepoSet, // Repository需要logger
 		domain.WireDoMainSet,   // Domain需要logger和配置值
 		http.WireHttpSet,       // Handler需要logger和RouteRegistrar
-		// 提供RouteRegistrar列表
+		// 提供RouteRegistrar切片（直接收集所有RouteRegistrar）
 		ProvideRouteRegistrars,
-		// HTTP服务器（需要logger用于中间件）
+		// HTTP服务器（需要logger和RouteRegistrar切片）
 		httpInfra.NewServer,
 		// 应用
 		NewApp,
@@ -54,44 +50,23 @@ func InitializeApp(cfgPath ConfigPath) (*App, error) {
 	return &App{}, nil
 }
 
-// NewLogger 创建日志实例
-func NewLogger(cfg *config.Config) (*infraLogger.ZapLogger, error) {
-	return infraLogger.NewZapLogger(
+// NewLogger 创建日志实例，直接返回logger.Logger接口
+func NewLogger(cfg *config.Config) (pkgLogger.Logger, error) {
+	zapLogger, err := infraLogger.NewZapLogger(
 		cfg.Log.Level,
 		cfg.Log.Format,
 		cfg.Log.Output,
 		cfg.Log.FilePath,
 	)
+	if err != nil {
+		return nil, err
+	}
+	// ZapLogger已经实现了pkgLogger.Logger接口，可以直接返回
+	return zapLogger, nil
 }
 
-// ProvideLogger 将ZapLogger转换为pkg/logger.Logger接口
-// 由于ZapLogger已经实现了pkg/logger.Logger接口，可以直接返回
-func ProvideLogger(zapLogger *infraLogger.ZapLogger) pkgLogger.Logger {
-	return zapLogger
-}
-
-// ProvideJWTSecret 提供JWT密钥（类型别名，避免与cfgPath string冲突）
-func ProvideJWTSecret(cfg *config.Config) JWTSecret {
-	return JWTSecret(cfg.Auth.JWTSecret)
-}
-
-// ProvideTokenExpires 提供Token过期时间（类型别名）
-func ProvideTokenExpires(cfg *config.Config) TokenExpires {
-	return TokenExpires(cfg.Auth.TokenExpires)
-}
-
-// ProvideAuthJWTSecret 将JWTSecret转换为string，供domain层使用
-// 使用明确的函数名避免与cfgPath参数冲突
-func ProvideAuthJWTSecret(secret JWTSecret) string {
-	return string(secret)
-}
-
-// ProvideAuthTokenExpires 将TokenExpires转换为int，供domain层使用
-func ProvideAuthTokenExpires(expires TokenExpires) int {
-	return int(expires)
-}
-
-// ProvideRouteRegistrars 提供路由注册器列表
+// ProvideRouteRegistrars 提供路由注册器切片
+// 直接收集所有RouteRegistrar，这是Wire要求的实现方式
 func ProvideRouteRegistrars(authRegistrar httpInfra.RouteRegistrar) []httpInfra.RouteRegistrar {
 	return []httpInfra.RouteRegistrar{authRegistrar}
 }
@@ -99,7 +74,7 @@ func ProvideRouteRegistrars(authRegistrar httpInfra.RouteRegistrar) []httpInfra.
 // App 应用结构
 type App struct {
 	Config *config.Config
-	Logger *infraLogger.ZapLogger
+	Logger pkgLogger.Logger
 	DB     database.Database
 	Redis  *persistence.Client
 	Server *httpInfra.Server
@@ -108,7 +83,7 @@ type App struct {
 // NewApp 创建应用实例
 func NewApp(
 	cfg *config.Config,
-	log *infraLogger.ZapLogger,
+	log pkgLogger.Logger,
 	db database.Database,
 	rdb *persistence.Client,
 	srv *httpInfra.Server,

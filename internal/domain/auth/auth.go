@@ -59,23 +59,26 @@ var (
 	ErrUserInactive    = errors.ErrForbidden("用户已被禁用")
 )
 
+type IAuthConfig interface {
+	GetJwtSecret() string
+	GetTokenExpires() int
+}
+
 // AuthService 认证服务
 type AuthService struct {
-	repo         IAuthRepository
-	logger       logger.Logger
-	jwtSecret    string
-	tokenExpires int // 秒
+	repo       IAuthRepository
+	logger     logger.Logger
+	authConfig IAuthConfig
 }
 
 // NewAuthService 创建认证服务
 // jwtSecret: JWT密钥
 // tokenExpires: token过期时间（秒）
-func NewAuthService(repo IAuthRepository, log logger.Logger, jwtSecret string, tokenExpires int) *AuthService {
+func NewAuthService(repo IAuthRepository, log logger.Logger, authConfig IAuthConfig) *AuthService {
 	return &AuthService{
-		repo:         repo,
-		logger:       log,
-		jwtSecret:    jwtSecret,
-		tokenExpires: tokenExpires,
+		repo:       repo,
+		logger:     log,
+		authConfig: authConfig,
 	}
 }
 
@@ -117,8 +120,8 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 	}
 
 	// 生成 Token（简化处理，实际应该使用 JWT）
-	token := generateToken(user.ID, s.jwtSecret)
-	expiresAt := time.Now().Add(time.Duration(s.tokenExpires) * time.Second)
+	token := generateToken(user.ID, s.authConfig.GetJwtSecret())
+	expiresAt := time.Now().Add(time.Duration(s.authConfig.GetTokenExpires()) * time.Second)
 
 	s.logger.Info("用户登录成功", logger.NewField("user_id", user.ID), logger.NewField("role", user.Role))
 

@@ -19,7 +19,7 @@ type Server struct {
 
 // NewServer 创建HTTP服务器
 // 接收路由注册器列表，通过 Wire 注入
-func NewServer(appCfg *config.Config, log logger.Logger, registrars ...RouteRegistrar) *Server {
+func NewServer(appCfg *config.Config, log logger.Logger, registrars []RouteRegistrar) *Server {
 	cfg := &appCfg.Server
 	// 设置Gin模式
 	gin.SetMode(cfg.Mode)
@@ -33,7 +33,7 @@ func NewServer(appCfg *config.Config, log logger.Logger, registrars ...RouteRegi
 	engine.Use(gin.Recovery())              // 恢复panic
 
 	// 设置路由
-	SetupRoutes(engine, registrars...)
+	SetupRoutes(engine, registrars)
 
 	return &Server{
 		engine: engine,

@@ -69,6 +69,14 @@ type AuthConfig struct {
 	TokenExpires int    `mapstructure:"token_expires"` // 秒
 }
 
+func (cfg *Config) GetJwtSecret() string {
+	return cfg.Auth.JWTSecret
+}
+
+func (cfg *Config) GetTokenExpires() int {
+	return cfg.Auth.TokenExpires
+}
+
 // Load 加载配置
 func Load(configPath string) (*Config, error) {
 	viper.SetConfigType("yaml")
