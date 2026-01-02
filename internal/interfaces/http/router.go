@@ -2,29 +2,31 @@ package http
 
 import (
 	"github.com/gin-gonic/gin"
+	httpInfra "member-pre/internal/infrastructure/http"
+	"member-pre/internal/interfaces/http/handler"
 )
 
-// Router 路由接口
-type Router interface {
-	RegisterRoutes(engine *gin.Engine)
+// authRouteRegistrar 认证路由注册器
+type authRouteRegistrar struct {
+	handler *handler.AuthHandler
 }
 
-// RegisterRoutes 注册所有路由
-func RegisterRoutes(engine *gin.Engine, routers ...Router) {
-	// API路由组
-	api := engine.Group("/api/v1")
+// RegisterRoutes 注册路由（实现 RouteRegistrar 接口）
+func (r *authRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
+	auth := api.Group("/auth")
 	{
-		// 健康检查
-		api.GET("/health", func(c *gin.Context) {
-			c.JSON(200, gin.H{
-				"status":  "ok",
-				"message": "服务运行正常",
-			})
-		})
+		// 登录接口（无需认证）
+		auth.POST("/login", r.handler.Login)
+		// 获取当前用户（需要认证）
+		auth.GET("/me", r.handler.GetCurrentUser)
+		// 登出接口（需要认证）
+		auth.POST("/logout", r.handler.Logout)
+	}
+}
 
-		// 注册各个模块的路由
-		for _, router := range routers {
-			router.RegisterRoutes(engine)
-		}
+// NewAuthRouteRegistrar 创建认证路由注册器
+func NewAuthRouteRegistrar(handler *handler.AuthHandler) httpInfra.RouteRegistrar {
+	return &authRouteRegistrar{
+		handler: handler,
 	}
 }

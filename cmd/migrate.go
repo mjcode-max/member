@@ -4,9 +4,9 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 	"member-pre/internal/infrastructure"
-	"member-pre/internal/infrastructure/persistence/migrate"
+	"member-pre/internal/infrastructure/persistence"
+	"member-pre/pkg/logger"
 )
 
 // migrateCmd 数据库迁移命令
@@ -24,7 +24,7 @@ var migrateUpCmd = &cobra.Command{
 		cfgPath := getConfigPath()
 
 		// 初始化应用（只需要配置和数据库）
-		app, err := infrastructure.InitializeApp(cfgPath)
+		app, err := infrastructure.InitializeApp(infrastructure.ConfigPath(cfgPath))
 		if err != nil {
 			return fmt.Errorf("初始化应用失败: %w", err)
 		}
@@ -32,8 +32,8 @@ var migrateUpCmd = &cobra.Command{
 
 		app.Logger.Info("开始执行数据库迁移")
 
-		if err := migrate.Up(app.DB.DB, app.Logger); err != nil {
-			app.Logger.Error("数据库迁移失败", zap.Error(err))
+		if err := persistence.Up(app.DB.DB(), app.Logger); err != nil {
+			app.Logger.Error("数据库迁移失败", logger.NewField("error", err.Error()))
 			return err
 		}
 
@@ -50,7 +50,7 @@ var migrateDownCmd = &cobra.Command{
 		cfgPath := getConfigPath()
 
 		// 初始化应用（只需要配置和数据库）
-		app, err := infrastructure.InitializeApp(cfgPath)
+		app, err := infrastructure.InitializeApp(infrastructure.ConfigPath(cfgPath))
 		if err != nil {
 			return fmt.Errorf("初始化应用失败: %w", err)
 		}
@@ -58,8 +58,8 @@ var migrateDownCmd = &cobra.Command{
 
 		app.Logger.Info("开始回滚数据库迁移")
 
-		if err := migrate.Down(app.DB.DB, app.Logger); err != nil {
-			app.Logger.Error("数据库迁移回滚失败", zap.Error(err))
+		if err := persistence.Down(app.DB.DB(), app.Logger); err != nil {
+			app.Logger.Error("数据库迁移回滚失败", logger.NewField("error", err.Error()))
 			return err
 		}
 
@@ -76,14 +76,14 @@ var migrateStatusCmd = &cobra.Command{
 		cfgPath := getConfigPath()
 
 		// 初始化应用（只需要配置和数据库）
-		app, err := infrastructure.InitializeApp(cfgPath)
+		app, err := infrastructure.InitializeApp(infrastructure.ConfigPath(cfgPath))
 		if err != nil {
 			return fmt.Errorf("初始化应用失败: %w", err)
 		}
 		defer app.DB.Close()
 
-		if err := migrate.Status(app.DB.DB, app.Logger); err != nil {
-			app.Logger.Error("查看迁移状态失败", zap.Error(err))
+		if err := persistence.Status(app.DB.DB(), app.Logger); err != nil {
+			app.Logger.Error("查看迁移状态失败", logger.NewField("error", err.Error()))
 			return err
 		}
 

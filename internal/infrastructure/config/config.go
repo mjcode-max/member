@@ -26,17 +26,19 @@ type ServerConfig struct {
 
 // DatabaseConfig 数据库配置
 type DatabaseConfig struct {
-	Host            string        `mapstructure:"host"`
-	Port            int           `mapstructure:"port"`
-	User            string        `mapstructure:"user"`
-	Password        string        `mapstructure:"password"`
-	DBName          string        `mapstructure:"dbname"`
-	Charset         string        `mapstructure:"charset"`
-	ParseTime       bool          `mapstructure:"parse_time"`
-	Loc             string        `mapstructure:"loc"`
-	MaxIdleConns    int           `mapstructure:"max_idle_conns"`
-	MaxOpenConns    int           `mapstructure:"max_open_conns"`
-	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"`
+	Type            string        `mapstructure:"type"`              // 数据库类型: mysql, postgres, file
+	Host            string        `mapstructure:"host"`              // 数据库主机（mysql/postgres使用）
+	Port            int           `mapstructure:"port"`              // 数据库端口（mysql/postgres使用）
+	User            string        `mapstructure:"user"`              // 数据库用户（mysql/postgres使用）
+	Password        string        `mapstructure:"password"`          // 数据库密码（mysql/postgres使用）
+	DBName          string        `mapstructure:"dbname"`            // 数据库名称（mysql/postgres使用）
+	Charset         string        `mapstructure:"charset"`           // 字符集（mysql使用）
+	ParseTime       bool          `mapstructure:"parse_time"`        // 解析时间（mysql使用）
+	Loc             string        `mapstructure:"loc"`               // 时区
+	FilePath        string        `mapstructure:"file_path"`         // 文件路径（file类型使用）
+	MaxIdleConns    int           `mapstructure:"max_idle_conns"`    // 最大空闲连接数
+	MaxOpenConns    int           `mapstructure:"max_open_conns"`    // 最大打开连接数
+	ConnMaxLifetime time.Duration `mapstructure:"conn_max_lifetime"` // 连接最大生存时间
 }
 
 // RedisConfig Redis配置
@@ -103,11 +105,13 @@ func setDefaults() {
 	viper.SetDefault("server.read_timeout", 30)
 	viper.SetDefault("server.write_timeout", 30)
 
+	viper.SetDefault("database.type", "mysql")
 	viper.SetDefault("database.host", "localhost")
 	viper.SetDefault("database.port", 3306)
 	viper.SetDefault("database.charset", "utf8mb4")
 	viper.SetDefault("database.parse_time", true)
 	viper.SetDefault("database.loc", "Local")
+	viper.SetDefault("database.file_path", "test.db")
 	viper.SetDefault("database.max_idle_conns", 10)
 	viper.SetDefault("database.max_open_conns", 100)
 	viper.SetDefault("database.conn_max_lifetime", 3600)

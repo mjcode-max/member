@@ -8,8 +8,8 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"go.uber.org/zap"
 	"member-pre/internal/infrastructure"
+	"member-pre/pkg/logger"
 )
 
 // serverCmd 启动服务器命令
@@ -21,7 +21,7 @@ var serverCmd = &cobra.Command{
 		cfgPath := getConfigPath()
 
 		// 初始化应用
-		app, err := infrastructure.InitializeApp(cfgPath)
+		app, err := infrastructure.InitializeApp(infrastructure.ConfigPath(cfgPath))
 		if err != nil {
 			return err
 		}
@@ -33,12 +33,12 @@ var serverCmd = &cobra.Command{
 		// 启动服务器
 		go func() {
 			app.Logger.Info("启动HTTP服务器",
-				zap.Int("port", app.Config.Server.Port),
-				zap.String("mode", app.Config.Server.Mode),
+				logger.NewField("port", app.Config.Server.Port),
+				logger.NewField("mode", app.Config.Server.Mode),
 			)
 
 			if err := app.Server.Start(); err != nil {
-				app.Logger.Fatal("HTTP服务器启动失败", zap.Error(err))
+				app.Logger.Fatal("HTTP服务器启动失败", logger.NewField("error", err.Error()))
 			}
 		}()
 
@@ -52,22 +52,22 @@ var serverCmd = &cobra.Command{
 
 		// 关闭HTTP服务器
 		if err := app.Server.Stop(ctx); err != nil {
-			app.Logger.Error("关闭HTTP服务器失败", zap.Error(err))
+			app.Logger.Error("关闭HTTP服务器失败", logger.NewField("error", err.Error()))
 		}
 
 		// 关闭数据库连接
 		if err := app.DB.Close(); err != nil {
-			app.Logger.Error("关闭数据库连接失败", zap.Error(err))
+			app.Logger.Error("关闭数据库连接失败", logger.NewField("error", err.Error()))
 		}
 
 		// 关闭Redis连接
 		if err := app.Redis.Close(); err != nil {
-			app.Logger.Error("关闭Redis连接失败", zap.Error(err))
+			app.Logger.Error("关闭Redis连接失败", logger.NewField("error", err.Error()))
 		}
 
 		// 同步日志
 		if err := app.Logger.Sync(); err != nil {
-			app.Logger.Error("同步日志失败", zap.Error(err))
+			app.Logger.Error("同步日志失败", logger.NewField("error", err.Error()))
 		}
 
 		app.Logger.Info("服务器已关闭")

@@ -43,7 +43,7 @@ package: clean
 	@echo "复制配置文件..."
 	@cp -r configs/* build/configs/
 	@echo "复制文档和脚本..."
-	@test -d docs && cp -r docs build/ || true
+#	@test -d docs && cp -r docs build/ || true
 	@test -d scripts && cp -r scripts build/ || true
 	@echo "构建前端项目..."
 	@echo "  构建 admin-web..."

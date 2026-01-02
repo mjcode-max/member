@@ -7,9 +7,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"member-pre/internal/infrastructure/config"
-	"member-pre/internal/infrastructure/persistence/mysql"
-	"member-pre/internal/infrastructure/persistence/redis"
-	httpInterface "member-pre/internal/interfaces/http"
+	"member-pre/pkg/logger"
 )
 
 // Server HTTP服务器
@@ -20,19 +18,22 @@ type Server struct {
 }
 
 // NewServer 创建HTTP服务器
-func NewServer(appCfg *config.Config, db *mysql.DB, rdb *redis.Client) *Server {
+// 接收路由注册器列表，通过 Wire 注入
+func NewServer(appCfg *config.Config, log logger.Logger, registrars ...RouteRegistrar) *Server {
 	cfg := &appCfg.Server
 	// 设置Gin模式
 	gin.SetMode(cfg.Mode)
 
 	engine := gin.New()
 
-	// 添加中间件
-	engine.Use(gin.Logger())
-	engine.Use(gin.Recovery())
+	// 添加中间件（按顺序）
+	engine.Use(RequestIDMiddleware())       // 请求ID追踪
+	engine.Use(LoggerMiddleware(log))       // 日志记录
+	engine.Use(ErrorHandlerMiddleware(log)) // 错误处理
+	engine.Use(gin.Recovery())              // 恢复panic
 
 	// 设置路由
-	httpInterface.SetupRoutes(engine, appCfg, db, rdb)
+	SetupRoutes(engine, registrars...)
 
 	return &Server{
 		engine: engine,
