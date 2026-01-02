@@ -115,3 +115,5 @@ coverage/
 # WeChat MiniProgram
 project.private.config.json
 
+web/*/package-lock.json
+

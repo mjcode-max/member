@@ -47,13 +47,13 @@ package: clean
 	@test -d scripts && cp -r scripts build/ || true
 	@echo "构建前端项目..."
 	@echo "  构建 admin-web..."
-	@cd web/admin-web && npm run build && cp -r dist ../../build/dist/admin-web || (echo "  admin-web 构建失败，跳过" && true)
+	@cd web/admin-web && npm install && npm run build && cp -r dist ../../build/dist/admin-web || (echo "  admin-web 构建失败，跳过" && true)
 	@echo "  构建 customer-h5..."
-	@cd web/customer-h5 && npm run build && cp -r dist ../../build/dist/customer-h5 || (echo "  customer-h5 构建失败，跳过" && true)
+	@cd web/customer-h5 && npm install && npm run build && cp -r dist ../../build/dist/customer-h5 || (echo "  customer-h5 构建失败，跳过" && true)
 	@echo "  构建 staff-h5..."
-	@cd web/staff-h5 && npm run build && cp -r dist ../../build/dist/staff-h5 || (echo "  staff-h5 构建失败，跳过" && true)
+	@cd web/staff-h5 && npm install && npm run build && cp -r dist ../../build/dist/staff-h5 || (echo "  staff-h5 构建失败，跳过" && true)
 	@echo "  构建 store-h5..."
-	@cd web/store-h5 && npm run build && cp -r dist ../../build/dist/store-h5 || (echo "  store-h5 构建失败，跳过" && true)
+	@cd web/store-h5 && npm install && npm run build && cp -r dist ../../build/dist/store-h5 || (echo "  store-h5 构建失败，跳过" && true)
 	@echo "压缩打包文件..."
 	@tar -czf build.tar.gz -C build .
 	@echo "打包完成！"
