@@ -1,4 +1,4 @@
-.PHONY: wire gen run build migrate-up migrate-down migrate-status package clean
+.PHONY: wire gen run build migrate-up migrate-down migrate-status package clean test link
 
 # 生成 Wire 代码
 wire:
@@ -10,7 +10,7 @@ run:
 	go run ./cmd server
 
 # 构建应用
-build: wire
+build: wire swagger
 	go build -o bin/server ./cmd
 
 # 数据库迁移 - 执行迁移
@@ -34,8 +34,26 @@ deps:
 wire-init:
 	go install github.com/google/wire/cmd/wire@latest
 
+# 生成 Swagger 文档
+swagger:
+	@which swag > /dev/null || (echo "swag 未安装，正在安装..." && go install github.com/swaggo/swag/cmd/swag@latest)
+	@export PATH=$$PATH:$$(go env GOPATH)/bin && swag init -g cmd/main.go -o ./docs --parseDependency --parseInternal
+	@echo "Swagger 文档生成完成！访问 http://localhost:8080/swagger/index.html 查看文档"
+
+# 运行 domain 包的单元测试
+test:
+	@echo "运行 domain 包的单元测试..."
+	@go test ./internal/domain/... -v
+	@echo "测试完成！"
+
+# 运行 Go 静态分析工具
+link:
+	@echo "运行 Go 静态分析..."
+	@go vet ./...
+	@echo "静态分析完成！"
+
 # 打包 - 构建前端和后端，生成 build 文件夹并压缩
-package: clean
+package: clean deps wire swagger link test
 	@echo "开始打包..."
 	@mkdir -p build/bin build/configs build/dist
 	@echo "构建后端二进制..."
@@ -43,7 +61,7 @@ package: clean
 	@echo "复制配置文件..."
 	@cp -r configs/* build/configs/
 	@echo "复制文档和脚本..."
-#	@test -d docs && cp -r docs build/ || true
+	@test -d docs && cp -r docs build/ || true
 	@test -d scripts && cp -r scripts build/ || true
 	@echo "构建前端项目..."
 	@echo "  构建 admin-web..."
