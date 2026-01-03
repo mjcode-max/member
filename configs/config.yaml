@@ -41,3 +41,8 @@ auth:
   jwt_secret: your-secret-key-change-in-production # JWT密钥，生产环境请修改
   token_expires: 7200 # token过期时间（秒），默认2小时
 
+# 默认管理员账户（仅在数据库迁移时创建，如果已存在则跳过）
+admin:
+  username: admin # 管理员用户名
+  password: admin123 # 管理员密码（生产环境请修改）
+

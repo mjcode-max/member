@@ -6,6 +6,9 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"member-pre/internal/domain/auth"
+	"member-pre/internal/domain/user"
+	"member-pre/internal/infrastructure/config"
 	"member-pre/pkg/logger"
 )
 
@@ -32,7 +35,7 @@ func getModelName(model interface{}) string {
 }
 
 // Up 执行所有迁移
-func Up(db *gorm.DB, log logger.Logger) error {
+func Up(db *gorm.DB, log logger.Logger, cfg *config.Config) error {
 	// 创建迁移记录表
 	if err := createMigrationTable(db); err != nil {
 		return fmt.Errorf("创建迁移记录表失败: %w", err)
@@ -64,6 +67,12 @@ func Up(db *gorm.DB, log logger.Logger) error {
 		}
 
 		log.Info("迁移执行成功", logger.NewField("model", modelName))
+	}
+
+	// 迁移完成后，初始化默认 admin 账户
+	if err := initAdminUser(db, log, cfg); err != nil {
+		log.Warn("初始化 admin 账户失败", logger.NewField("error", err.Error()))
+		// 不返回错误，因为这不是迁移失败
 	}
 
 	return nil
@@ -163,4 +172,68 @@ func recordMigration(db *gorm.DB, name string) error {
 // removeMigrationRecord 删除迁移记录
 func removeMigrationRecord(db *gorm.DB, name string) error {
 	return db.Where("name = ?", name).Delete(&MigrationRecord{}).Error
+}
+
+// UserModel 用户数据库模型（用于迁移时创建 admin 账户，避免循环导入）
+type UserModel struct {
+	ID         uint           `gorm:"primaryKey" json:"id"`
+	Username   string         `gorm:"uniqueIndex;size:50" json:"username"`
+	Email      string         `gorm:"size:100" json:"email"`
+	Phone      string         `gorm:"uniqueIndex;size:20" json:"phone"`
+	Password   string         `gorm:"size:255" json:"-"`
+	Role       string         `gorm:"size:20;default:'customer';not null" json:"role"`
+	Status     string         `gorm:"size:20;default:'active';not null" json:"status"`
+	StoreID    *uint          `gorm:"index" json:"store_id"`
+	WorkStatus *string        `gorm:"size:20" json:"work_status"`
+	CreatedAt  time.Time      `json:"created_at"`
+	UpdatedAt  time.Time      `json:"updated_at"`
+	DeletedAt  gorm.DeletedAt `gorm:"index" json:"-"`
+}
+
+// TableName 指定表名
+func (UserModel) TableName() string {
+	return "users"
+}
+
+// initAdminUser 初始化默认 admin 账户
+func initAdminUser(db *gorm.DB, log logger.Logger, cfg *config.Config) error {
+	if cfg == nil || cfg.Admin.Username == "" {
+		log.Info("未配置 admin 账户，跳过初始化")
+		return nil
+	}
+
+	// 检查 admin 账户是否已存在
+	var count int64
+	if err := db.Model(&UserModel{}).Where("username = ? AND role = ?", cfg.Admin.Username, user.RoleAdmin).Count(&count).Error; err != nil {
+		return fmt.Errorf("检查 admin 账户失败: %w", err)
+	}
+
+	if count > 0 {
+		log.Info("admin 账户已存在，跳过创建", logger.NewField("username", cfg.Admin.Username))
+		return nil
+	}
+
+	// 加密密码
+	hashedPassword, err := auth.HashPassword(cfg.Admin.Password)
+	if err != nil {
+		return fmt.Errorf("加密密码失败: %w", err)
+	}
+
+	// 创建 admin 账户
+	adminUser := &UserModel{
+		Username:  cfg.Admin.Username,
+		Password:  hashedPassword,
+		Role:      user.RoleAdmin,
+		Status:    user.StatusActive,
+		StoreID:   nil, // admin 不关联门店
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := db.Create(adminUser).Error; err != nil {
+		return fmt.Errorf("创建 admin 账户失败: %w", err)
+	}
+
+	log.Info("admin 账户创建成功", logger.NewField("username", cfg.Admin.Username))
+	return nil
 }

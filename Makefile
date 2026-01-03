@@ -84,3 +84,4 @@ clean:
 	@rm -rf build bin build.tar.gz
 	@echo "清理完成"
 
+pre-commit: clean deps wire swagger link test

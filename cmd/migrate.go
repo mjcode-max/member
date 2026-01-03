@@ -32,7 +32,7 @@ var migrateUpCmd = &cobra.Command{
 
 		app.Logger.Info("开始执行数据库迁移")
 
-		if err := persistence.Up(app.DB.DB(), app.Logger); err != nil {
+		if err := persistence.Up(app.DB.DB(), app.Logger, app.Config); err != nil {
 			app.Logger.Error("数据库迁移失败", logger.NewField("error", err.Error()))
 			return err
 		}
