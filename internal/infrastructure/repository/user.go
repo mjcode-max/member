@@ -12,6 +12,8 @@ import (
 	"member-pre/pkg/logger"
 )
 
+var _ user.IUserRepository = (*UserRepository)(nil)
+
 // UserRepository 用户仓储实现
 type UserRepository struct {
 	db     database.Database
@@ -37,7 +39,7 @@ type UserModel struct {
 	Password   string         `gorm:"size:255" json:"-"`
 	Role       string         `gorm:"size:20;default:'customer';not null" json:"role"`
 	Status     string         `gorm:"size:20;default:'active';not null" json:"status"`
-	StoreID    *uint          `gorm:"index" json:"store_id"` // 店长和美甲师必须关联门店
+	StoreID    *uint          `gorm:"index" json:"store_id"`      // 店长和美甲师必须关联门店
 	WorkStatus *string        `gorm:"size:20" json:"work_status"` // 美甲师工作状态
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
@@ -292,4 +294,3 @@ func (r *UserRepository) FindByStoreID(ctx context.Context, storeID uint, role s
 
 	return users, nil
 }
-

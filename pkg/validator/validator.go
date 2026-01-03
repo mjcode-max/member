@@ -1,6 +1,7 @@
 package validator
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strings"
@@ -33,7 +34,7 @@ func (v *Validator) Validate() error {
 	if len(v.errors) == 0 {
 		return nil
 	}
-	return fmt.Errorf(strings.Join(v.errors, "; "))
+	return errors.New(strings.Join(v.errors, "; "))
 }
 
 // Errors 获取所有错误
