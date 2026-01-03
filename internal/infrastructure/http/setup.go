@@ -2,6 +2,8 @@ package http
 
 import (
 	"github.com/gin-gonic/gin"
+	swaggerFiles "github.com/swaggo/files"
+	ginSwagger "github.com/swaggo/gin-swagger"
 )
 
 // RouteRegistrar 路由注册器接口
@@ -13,6 +15,9 @@ type RouteRegistrar interface {
 // SetupRoutes 设置路由
 // 接收路由注册器列表，通过 Wire 注入
 func SetupRoutes(engine *gin.Engine, registrars []RouteRegistrar) {
+	// Swagger文档
+	engine.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
 	// API路由组
 	api := engine.Group("/api/v1")
 	{

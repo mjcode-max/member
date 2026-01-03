@@ -7,5 +7,6 @@ import (
 
 var WireHttpSet = wire.NewSet(
 	handler.NewAuthHandler,
-	NewAuthRouteRegistrar,
+	handler.NewUserHandler,
+	NewAppRouteRegistrar,
 )

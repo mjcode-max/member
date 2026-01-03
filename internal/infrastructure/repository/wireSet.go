@@ -2,11 +2,11 @@ package repository
 
 import (
 	"github.com/google/wire"
-	"member-pre/internal/domain/auth"
+	"member-pre/internal/domain/user"
 )
 
 var WireRepoSet = wire.NewSet(
-	NewAuthRepository,
+	NewUserRepository,
 	// 绑定接口和实现
-	wire.Bind(new(auth.IAuthRepository), new(*AuthRepository)),
+	wire.Bind(new(user.IUserRepository), new(*UserRepository)),
 )

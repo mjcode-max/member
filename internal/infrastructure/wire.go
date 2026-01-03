@@ -67,8 +67,8 @@ func NewLogger(cfg *config.Config) (pkgLogger.Logger, error) {
 
 // ProvideRouteRegistrars 提供路由注册器切片
 // 直接收集所有RouteRegistrar，这是Wire要求的实现方式
-func ProvideRouteRegistrars(authRegistrar httpInfra.RouteRegistrar) []httpInfra.RouteRegistrar {
-	return []httpInfra.RouteRegistrar{authRegistrar}
+func ProvideRouteRegistrars(appRegistrar httpInfra.RouteRegistrar) []httpInfra.RouteRegistrar {
+	return []httpInfra.RouteRegistrar{appRegistrar}
 }
 
 // App 应用结构

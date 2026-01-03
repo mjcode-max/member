@@ -31,8 +31,8 @@ func NewAuthHandler(service *auth.AuthService, log logger.Logger) *AuthHandler {
 // @Tags 认证
 // @Accept json
 // @Produce json
-// @Param request body domain.LoginRequest true "登录请求"
-// @Success 200 {object} domain.LoginResponse
+// @Param request body auth.LoginRequest true "登录请求"
+// @Success 200 {object} auth.LoginResponse
 // @Router /auth/login [post]
 func (h *AuthHandler) Login(c *gin.Context) {
 	startTime := time.Now()
@@ -82,7 +82,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Success 200 {object} domain.GetCurrentUserResponse
+// @Success 200 {object} auth.GetCurrentUserResponse
 // @Router /auth/me [get]
 func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 	startTime := time.Now()
