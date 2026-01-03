@@ -1,0 +1,221 @@
+# Taskfile - 跨平台任务运行器
+# 安装: go install github.com/go-task/task/v3/cmd/task@latest
+# 或: scoop install task, choco install go-task, brew install go-task
+# 使用方法: task [target]
+# 例如: task run
+
+version: '3'
+
+vars:
+  GO_BIN: '{{.GOPATH}}/bin'
+  SERVER_BIN: 'bin/server{{if eq .OS "windows"}}.exe{{end}}'
+  BUILD_BIN: 'build/bin/server{{if eq .OS "windows"}}.exe{{end}}'
+
+tasks:
+  default:
+    desc: 显示所有可用任务
+    cmds:
+      - task --list
+
+  wire:
+    desc: 生成 Wire 代码
+    cmds:
+      - |
+        {{if eq .OS "windows"}}
+        where wire >nul 2>&1 || go install github.com/google/wire/cmd/wire@latest
+        {{else}}
+        which wire > /dev/null || go install github.com/google/wire/cmd/wire@latest
+        {{end}}
+      - |
+        {{if eq .OS "windows"}}
+        cd internal\infrastructure && wire
+        {{else}}
+        cd internal/infrastructure && wire
+        {{end}}
+
+  run:
+    desc: 运行应用
+    cmds:
+      - go run ./cmd server
+
+  build:
+    desc: 构建应用
+    deps: [wire, swagger]
+    cmds:
+      - go build -o {{.SERVER_BIN}} ./cmd
+
+  migrate-up:
+    desc: 执行数据库迁移
+    cmds:
+      - go run ./cmd migrate up
+
+  migrate-down:
+    desc: 回滚数据库迁移
+    cmds:
+      - go run ./cmd migrate down
+
+  migrate-status:
+    desc: 查看迁移状态
+    cmds:
+      - go run ./cmd migrate status
+
+  deps:
+    desc: 下载依赖
+    cmds:
+      - go mod download
+      - go mod tidy
+
+  wire-init:
+    desc: 初始化 Wire（首次使用）
+    cmds:
+      - go install github.com/google/wire/cmd/wire@latest
+
+  swagger:
+    desc: 生成 Swagger 文档
+    cmds:
+      - |
+        {{if eq .OS "windows"}}
+        where swag >nul 2>&1 || go install github.com/swaggo/swag/cmd/swag@latest
+        {{else}}
+        which swag > /dev/null || go install github.com/swaggo/swag/cmd/swag@latest
+        {{end}}
+      - swag init -g cmd/main.go -o ./docs --parseDependency --parseInternal
+      - echo "Swagger 文档生成完成！访问 http://localhost:8080/swagger/index.html 查看文档"
+
+  test:
+    desc: 运行 domain 包的单元测试
+    cmds:
+      - echo "运行 domain 包的单元测试..."
+      - go test ./internal/domain/... -v
+      - echo "测试完成！"
+
+  link:
+    desc: 运行 Go 静态分析工具
+    cmds:
+      - echo "运行 Go 静态分析..."
+      - go vet ./...
+      - echo "静态分析完成！"
+
+  package:
+    desc: 打包应用（构建前端和后端）
+    deps: [clean, deps, wire, swagger, link, test]
+    cmds:
+      - echo "开始打包..."
+      - |
+        {{if eq .OS "windows"}}
+        if not exist build\bin mkdir build\bin
+        if not exist build\configs mkdir build\configs
+        if not exist build\dist mkdir build\dist
+        {{else}}
+        mkdir -p build/bin build/configs build/dist
+        {{end}}
+      - echo "构建后端二进制..."
+      - go build -ldflags="-s -w" -o {{.BUILD_BIN}} ./cmd
+      - echo "复制配置文件..."
+      - |
+        {{if eq .OS "windows"}}
+        xcopy /E /I /Y configs\* build\configs\
+        {{else}}
+        cp -r configs/* build/configs/
+        {{end}}
+      - echo "复制文档和脚本..."
+      - |
+        {{if eq .OS "windows"}}
+        if exist docs xcopy /E /I /Y docs build\docs\
+        if exist scripts xcopy /E /I /Y scripts build\scripts\
+        {{else}}
+        test -d docs && cp -r docs build/ || true
+        test -d scripts && cp -r scripts build/ || true
+        {{end}}
+      - task: build-web
+      - echo "压缩打包文件..."
+      - |
+        {{if eq .OS "windows"}}
+        powershell -Command "Compress-Archive -Path build\* -DestinationPath build.zip -Force"
+        echo "打包完成！输出目录: build/"
+        echo "  压缩包: build.zip"
+        {{else}}
+        tar -czf build.tar.gz -C build .
+        echo "打包完成！输出目录: build/"
+        echo "  压缩包: build.tar.gz"
+        {{end}}
+
+  build-web:
+    desc: 构建所有前端项目
+    cmds:
+      - task: build-admin-web
+      - task: build-customer-h5
+      - task: build-staff-h5
+      - task: build-store-h5
+
+  build-admin-web:
+    desc: 构建 admin-web 前端
+    dir: web/admin-web
+    cmds:
+      - echo "  构建 admin-web..."
+      - npm install
+      - npm run build
+      - |
+        {{if eq .OS "windows"}}
+        if exist dist xcopy /E /I /Y dist ..\..\build\dist\admin-web\
+        {{else}}
+        test -d dist && cp -r dist ../../build/dist/admin-web || (echo "  admin-web 构建失败，跳过" && true)
+        {{end}}
+
+  build-customer-h5:
+    desc: 构建 customer-h5 前端
+    dir: web/customer-h5
+    cmds:
+      - echo "  构建 customer-h5..."
+      - npm install
+      - npm run build
+      - |
+        {{if eq .OS "windows"}}
+        if exist dist xcopy /E /I /Y dist ..\..\build\dist\customer-h5\
+        {{else}}
+        test -d dist && cp -r dist ../../build/dist/customer-h5 || (echo "  customer-h5 构建失败，跳过" && true)
+        {{end}}
+
+  build-staff-h5:
+    desc: 构建 staff-h5 前端
+    dir: web/staff-h5
+    cmds:
+      - echo "  构建 staff-h5..."
+      - npm install
+      - npm run build
+      - |
+        {{if eq .OS "windows"}}
+        if exist dist xcopy /E /I /Y dist ..\..\build\dist\staff-h5\
+        {{else}}
+        test -d dist && cp -r dist ../../build/dist/staff-h5 || (echo "  staff-h5 构建失败，跳过" && true)
+        {{end}}
+
+  build-store-h5:
+    desc: 构建 store-h5 前端
+    dir: web/store-h5
+    cmds:
+      - echo "  构建 store-h5..."
+      - npm install
+      - npm run build
+      - |
+        {{if eq .OS "windows"}}
+        if exist dist xcopy /E /I /Y dist ..\..\build\dist\store-h5\
+        {{else}}
+        test -d dist && cp -r dist ../../build/dist/store-h5 || (echo "  store-h5 构建失败，跳过" && true)
+        {{end}}
+
+  clean:
+    desc: 清理构建产物
+    cmds:
+      - echo "清理构建产物..."
+      - |
+        {{if eq .OS "windows"}}
+        if exist build rmdir /S /Q build
+        if exist bin rmdir /S /Q bin
+        if exist build.tar.gz del /Q build.tar.gz
+        if exist build.zip del /Q build.zip
+        {{else}}
+        rm -rf build bin build.tar.gz
+        {{end}}
+      - echo "清理完成"
+

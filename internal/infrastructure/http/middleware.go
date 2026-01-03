@@ -1,8 +1,11 @@
 package http
 
 import (
+	"strings"
+
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"member-pre/internal/domain/auth"
 	"member-pre/pkg/errors"
 	"member-pre/pkg/logger"
 	"member-pre/pkg/utils"
@@ -85,6 +88,103 @@ func LoggerMiddleware(log logger.Logger) gin.HandlerFunc {
 			logger.NewField("client_ip", c.ClientIP()),
 			logger.NewField("user_agent", c.Request.UserAgent()),
 		)
+	}
+}
+
+// AuthMiddleware JWT认证中间件
+func AuthMiddleware(authService *auth.AuthService, log logger.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		requestID := getRequestID(c)
+
+		// 从请求头获取token
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			log.Warn("未提供认证令牌",
+				logger.NewField("request_id", requestID),
+				logger.NewField("path", c.Request.URL.Path),
+			)
+			utils.ErrorWithCode(c, http.StatusUnauthorized, "未提供认证令牌")
+			c.Abort()
+			return
+		}
+
+		// 移除 "Bearer " 前缀
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		if tokenString == authHeader {
+			// 如果没有Bearer前缀，尝试直接使用
+			tokenString = authHeader
+		}
+
+		// 验证token
+		claims, err := authService.ValidateToken(tokenString)
+		if err != nil {
+			log.Warn("令牌验证失败",
+				logger.NewField("request_id", requestID),
+				logger.NewField("path", c.Request.URL.Path),
+				logger.NewField("error", err.Error()),
+			)
+			// 使用统一的错误处理
+			utils.Error(c, err)
+			c.Abort()
+			return
+		}
+
+		// 将用户信息存储到context中
+		c.Set("user_id", claims.UserID)
+		c.Set("user_role", claims.Role)
+		if claims.StoreID != nil {
+			c.Set("store_id", *claims.StoreID)
+		}
+
+		log.Debug("认证成功",
+			logger.NewField("request_id", requestID),
+			logger.NewField("user_id", claims.UserID),
+			logger.NewField("role", claims.Role),
+		)
+
+		c.Next()
+	}
+}
+
+// RoleMiddleware 角色权限中间件
+func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		userRole, exists := c.Get("user_role")
+		if !exists {
+			utils.ErrorWithCode(c, http.StatusUnauthorized, "未授权访问")
+			c.Abort()
+			return
+		}
+
+		role, ok := userRole.(string)
+		if !ok {
+			utils.ErrorWithCode(c, http.StatusForbidden, "无效的用户角色")
+			c.Abort()
+			return
+		}
+
+		// 如果没有指定允许的角色，则允许所有已认证用户
+		if len(allowedRoles) == 0 {
+			c.Next()
+			return
+		}
+
+		// 检查角色是否在允许列表中
+		allowed := false
+		for _, allowedRole := range allowedRoles {
+			if role == allowedRole {
+				allowed = true
+				break
+			}
+		}
+
+		if !allowed {
+			utils.ErrorWithCode(c, http.StatusForbidden, "权限不足")
+			c.Abort()
+			return
+		}
+
+		c.Next()
 	}
 }
 
