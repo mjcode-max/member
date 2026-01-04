@@ -12,11 +12,11 @@
     <van-form @submit="handleSubmit">
       <van-cell-group inset>
         <van-field
-          v-model="form.name"
-          name="name"
-          label="员工姓名"
-          placeholder="请输入员工姓名"
-          :rules="[{ required: true, message: '请输入员工姓名' }]"
+          v-model="form.username"
+          name="username"
+          label="用户名"
+          placeholder="请输入用户名"
+          :rules="[{ required: true, message: '请输入用户名' }]"
           left-icon="user-o"
         />
         
@@ -76,8 +76,9 @@ const router = useRouter()
 const loading = ref(false)
 
 const form = reactive({
-  name: '',
-  phone: ''
+  username: '',
+  phone: '',
+  password: '123456' // 默认密码
 })
 
 const phoneRules = [
@@ -89,11 +90,18 @@ const phoneRules = [
 const handleSubmit = async () => {
   loading.value = true
   try {
-    await createStaff(form)
+    // 如果没有提供密码，使用默认密码
+    const data = {
+      username: form.username,
+      phone: form.phone,
+      password: form.password || '123456'
+    }
+    await createStaff(data)
     showToast.success('员工创建成功')
     router.back()
   } catch (error) {
     console.error('创建员工失败:', error)
+    showToast.fail('创建失败，请重试')
   } finally {
     loading.value = false
   }

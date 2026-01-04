@@ -39,16 +39,19 @@ request.interceptors.response.use(
       return response
     }
     
-    // 统一处理响应数据
-    if (data.code === 200 || data.code === 201) {
+    // 统一处理响应数据 - 后端返回格式: { code, message, data }
+    // 注意：分页接口返回 code: 0，其他接口返回 code: 200
+    // 成功状态码：0, 200, 201
+    if (data.code === 200 || data.code === 201 || data.code === 0) {
       return data
-    } else if (data.code === 401) {
-      // token过期，清除用户信息并跳转到登录页
+    } else if (data.code === 401 || data.code === 403) {
+      // token过期或权限不足，清除用户信息并跳转到登录页
       const userStore = useUserStore()
       userStore.logoutAction()
       window.location.href = '/login'
       return Promise.reject(new Error(data.message || '认证失败'))
     } else {
+      // 其他错误，显示错误消息
       ElMessage.error(data.message || '请求失败')
       return Promise.reject(new Error(data.message || '请求失败'))
     }
@@ -59,24 +62,27 @@ request.interceptors.response.use(
     if (error.response) {
       const { status, data } = error.response
       
+      // 如果响应体中有 message，优先使用
+      const errorMessage = data?.message || data?.data?.message
+      
       switch (status) {
         case 401:
-          ElMessage.error('认证失败，请重新登录')
+          ElMessage.error(errorMessage || '认证失败，请重新登录')
           const userStore = useUserStore()
           userStore.logoutAction()
           window.location.href = '/login'
           break
         case 403:
-          ElMessage.error('权限不足')
+          ElMessage.error(errorMessage || '权限不足')
           break
         case 404:
-          ElMessage.error('请求的资源不存在')
+          ElMessage.error(errorMessage || '请求的资源不存在')
           break
         case 500:
-          ElMessage.error('服务器内部错误')
+          ElMessage.error(errorMessage || '服务器内部错误')
           break
         default:
-          ElMessage.error(data?.message || '请求失败')
+          ElMessage.error(errorMessage || '请求失败')
       }
     } else if (error.code === 'ECONNABORTED') {
       ElMessage.error('请求超时')

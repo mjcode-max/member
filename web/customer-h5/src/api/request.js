@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { showToast } from 'vant'
+import { useUserStore } from '@/stores/user'
 
 // 创建axios实例
 const request = axios.create({
@@ -13,6 +14,13 @@ const request = axios.create({
 // 请求拦截器
 request.interceptors.request.use(
   (config) => {
+    const userStore = useUserStore()
+    
+    // 添加认证token
+    if (userStore.token) {
+      config.headers.Authorization = `Bearer ${userStore.token}`
+    }
+    
     return config
   },
   (error) => {
@@ -31,10 +39,17 @@ request.interceptors.response.use(
       return response
     }
     
-    // 统一处理响应数据
-    if (data.code === 200) {
+    // 统一处理响应数据 - 后端返回格式: { code, message, data }
+    if (data.code === 200 || data.code === 201) {
       return data
+    } else if (data.code === 401 || data.code === 403) {
+      // token过期或权限不足，清除用户信息并跳转到登录页
+      const userStore = useUserStore()
+      userStore.clearUserInfo()
+      // 注意：customer-h5 可能需要根据实际路由调整跳转
+      return Promise.reject(new Error(data.message || '认证失败'))
     } else {
+      // 其他错误，显示错误消息
       showToast.fail(data.message || '请求失败')
       return Promise.reject(new Error(data.message || '请求失败'))
     }
@@ -44,19 +59,28 @@ request.interceptors.response.use(
     
     if (error.response) {
       const { status, data } = error.response
+      const errorMessage = data?.message || data?.data?.message
       
       switch (status) {
         case 400:
-          showToast.fail(data?.message || '请求参数错误')
+          showToast.fail(errorMessage || '请求参数错误')
+          break
+        case 401:
+          showToast.fail(errorMessage || '认证失败，请重新登录')
+          const userStore = useUserStore()
+          userStore.clearUserInfo()
+          break
+        case 403:
+          showToast.fail(errorMessage || '权限不足')
           break
         case 404:
-          showToast.fail('请求的资源不存在')
+          showToast.fail(errorMessage || '请求的资源不存在')
           break
         case 500:
-          showToast.fail('服务器内部错误')
+          showToast.fail(errorMessage || '服务器内部错误')
           break
         default:
-          showToast.fail(data?.message || '请求失败')
+          showToast.fail(errorMessage || '请求失败')
       }
     } else if (error.code === 'ECONNABORTED') {
       showToast.fail('请求超时')

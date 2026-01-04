@@ -39,16 +39,17 @@ request.interceptors.response.use(
       return response
     }
     
-    // 统一处理响应数据
-    if (data.code === 200) {
+    // 统一处理响应数据 - 后端返回格式: { code, message, data }
+    if (data.code === 200 || data.code === 201 || data.code === 0) {
       return data
-    } else if (data.code === 401) {
-      // token过期，清除用户信息并跳转到登录页
+    } else if (data.code === 401 || data.code === 403) {
+      // token过期或权限不足，清除用户信息并跳转到登录页
       const userStore = useUserStore()
       userStore.logoutAction()
       window.location.href = '/login'
       return Promise.reject(new Error(data.message || '认证失败'))
     } else {
+      // 其他错误，显示错误消息
       showFailToast(data.message || '请求失败')
       return Promise.reject(new Error(data.message || '请求失败'))
     }
@@ -58,25 +59,26 @@ request.interceptors.response.use(
     
     if (error.response) {
       const { status, data } = error.response
+      const errorMessage = data?.message || data?.data?.message
       
       switch (status) {
         case 401:
-          showFailToast('认证失败，请重新登录')
+          showFailToast(errorMessage || '认证失败，请重新登录')
           const userStore = useUserStore()
           userStore.logoutAction()
           window.location.href = '/login'
           break
         case 403:
-          showFailToast('权限不足')
+          showFailToast(errorMessage || '权限不足')
           break
         case 404:
-          showFailToast('请求的资源不存在')
+          showFailToast(errorMessage || '请求的资源不存在')
           break
         case 500:
-          showFailToast('服务器内部错误')
+          showFailToast(errorMessage || '服务器内部错误')
           break
         default:
-          showFailToast(data?.message || '请求失败')
+          showFailToast(errorMessage || '请求失败')
       }
     } else if (error.code === 'ECONNABORTED') {
       showFailToast('请求超时')

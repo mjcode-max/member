@@ -6,18 +6,18 @@
         <div class="profile-info">
           <div class="avatar-container">
             <div class="user-avatar" :class="userInfo.work_status">
-              {{ userInfo.name?.charAt(0) }}
+              {{ (userInfo.username || userInfo.name || 'U').charAt(0) }}
               <div class="status-ring" :class="userInfo.work_status"></div>
             </div>
             <div class="work-status-badge" :class="userInfo.work_status">
-              {{ userInfo.work_status === 'active' ? '在岗中' : '休息中' }}
+              {{ getWorkStatusText(userInfo.work_status) }}
             </div>
           </div>
           <div class="user-details">
-            <h2 class="user-name">{{ userInfo.name }}</h2>
+            <h2 class="user-name">{{ userInfo.username || userInfo.name || '用户' }}</h2>
             <p class="user-role">专业美甲师</p>
             <div class="user-meta">
-              <span class="join-date">入职时间：{{ formatDate(userInfo.created_at) }}</span>
+              <span class="join-date" v-if="userInfo.created_at">入职时间：{{ formatDate(userInfo.created_at) }}</span>
             </div>
           </div>
         </div>
@@ -34,8 +34,8 @@
         <div class="status-toggle">
           <div 
             class="toggle-option"
-            :class="{ active: userInfo.work_status === 'active' }"
-            @click="updateWorkStatus('active')"
+            :class="{ active: userInfo.work_status === 'working' || userInfo.work_status === 'active' }"
+            @click="updateWorkStatus('working')"
           >
             <div class="option-icon">🟢</div>
             <div class="option-content">
@@ -169,20 +169,22 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { useUserStore } from '@/stores/user'
 import { updateMyWorkStatus } from '@/api/staff'
+import { getCurrentUser } from '@/api/auth'
 import dayjs from 'dayjs'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const userInfo = reactive({
-  name: '李师师',
-  work_status: 'active',
-  created_at: '2023-01-15'
+  username: '',
+  name: '',
+  work_status: 'working', // working, rest, offline
+  created_at: ''
 })
 
 const todayStats = reactive({
@@ -213,12 +215,24 @@ const recentServices = ref([
   }
 ])
 
+// 获取工作状态文本
+const getWorkStatusText = (status) => {
+  const statusMap = {
+    working: '在岗中',
+    rest: '休息中',
+    offline: '离岗',
+    active: '在岗中' // 兼容旧数据
+  }
+  return statusMap[status] || '未知'
+}
+
 // 更新工作状态
 const updateWorkStatus = async (status) => {
   if (userInfo.work_status === status) return
 
   try {
-    const message = status === 'active' ? '确定要设置为在岗状态吗？' : '确定要设置为休息状态吗？'
+    const statusText = getWorkStatusText(status)
+    const message = status === 'working' ? '确定要设置为在岗状态吗？' : '确定要设置为休息状态吗？'
     const note = status === 'rest' ? '休息状态下将不会接收新的预约' : '在岗状态下可以接收新的预约'
     
     await showConfirmDialog({
@@ -226,10 +240,23 @@ const updateWorkStatus = async (status) => {
       message: `${message}\n\n${note}`
     })
 
-    await updateMyWorkStatus({ work_status: status })
+    // 获取当前用户ID
+    const userId = userStore.userInfo?.id
+    if (!userId) {
+      showToast('无法获取用户ID')
+      return
+    }
+    await updateMyWorkStatus({ work_status: status }, userId)
     userInfo.work_status = status
+    // 更新store中的用户信息
+    if (userStore.userInfo) {
+      userStore.userInfo.work_status = status
+      localStorage.setItem('userInfo', JSON.stringify(userStore.userInfo))
+    }
+    // 重新获取用户信息以确保数据同步
+    await fetchUserInfo()
     
-    showToast(`已切换为${status === 'active' ? '在岗' : '休息'}状态`)
+    showToast(`已切换为${statusText}状态`)
   } catch (error) {
     if (error !== 'cancel') {
       console.error('更新工作状态失败:', error)
@@ -258,12 +285,59 @@ const formatDateTime = (datetime) => {
   return dayjs(datetime).format('MM-DD HH:mm')
 }
 
-onMounted(() => {
-  // 获取用户信息
-  const user = userStore.getUserInfo()
-  if (user) {
-    Object.assign(userInfo, user)
+// 获取用户信息
+const fetchUserInfo = async () => {
+  try {
+    const response = await getCurrentUser()
+    if (response && response.data) {
+      const userData = response.data.user || response.data
+      Object.assign(userInfo, {
+        username: userData.username || userData.name || '',
+        name: userData.name || userData.username || '',
+        work_status: userData.work_status || 'working',
+        created_at: userData.created_at || ''
+      })
+      // 更新store
+      if (userStore.userInfo) {
+        Object.assign(userStore.userInfo, userData)
+      } else {
+        userStore.userInfo = userData
+      }
+      localStorage.setItem('userInfo', JSON.stringify(userStore.userInfo))
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+    // 如果接口失败，尝试使用本地存储的数据
+    const user = userStore.userInfo
+    if (user && Object.keys(user).length > 0) {
+      Object.assign(userInfo, {
+        username: user.username || user.name || '',
+        name: user.name || user.username || '',
+        work_status: user.work_status || 'working',
+        created_at: user.created_at || ''
+      })
+    }
   }
+}
+
+onMounted(async () => {
+  // 先尝试从本地获取
+  const user = userStore.userInfo
+  if (user && Object.keys(user).length > 0) {
+    Object.assign(userInfo, {
+      username: user.username || user.name || '',
+      name: user.name || user.username || '',
+      work_status: user.work_status || 'working',
+      created_at: user.created_at || ''
+    })
+  }
+  // 然后从接口获取最新数据
+  await fetchUserInfo()
+})
+
+// 页面激活时刷新用户信息（从其他页面返回时）
+onActivated(() => {
+  fetchUserInfo()
 })
 </script>
 
@@ -305,12 +379,17 @@ onMounted(() => {
   position: relative;
   border: 4px solid rgba(255, 255, 255, 0.3);
   
+  &.working,
   &.active {
     background: linear-gradient(135deg, #52c41a, #73d13d);
   }
   
   &.rest {
     background: linear-gradient(135deg, #faad14, #ffc53d);
+  }
+  
+  &.offline {
+    background: linear-gradient(135deg, #999, #bbb);
   }
 }
 
@@ -323,6 +402,7 @@ onMounted(() => {
   border-radius: 50%;
   border: 3px solid transparent;
   
+  &.working,
   &.active {
     border-color: #52c41a;
     animation: pulse-green 2s infinite;
@@ -331,6 +411,10 @@ onMounted(() => {
   &.rest {
     border-color: #faad14;
     animation: pulse-orange 2s infinite;
+  }
+  
+  &.offline {
+    border-color: #999;
   }
 }
 
@@ -341,6 +425,7 @@ onMounted(() => {
   font-size: 12px;
   font-weight: 600;
   
+  &.working,
   &.active {
     background: rgba(82, 196, 26, 0.2);
     color: #52c41a;
@@ -349,6 +434,11 @@ onMounted(() => {
   &.rest {
     background: rgba(250, 140, 22, 0.2);
     color: #faad14;
+  }
+  
+  &.offline {
+    background: rgba(153, 153, 153, 0.2);
+    color: #999;
   }
 }
 
@@ -421,7 +511,8 @@ onMounted(() => {
   transition: all 0.3s ease;
   border: 2px solid transparent;
   
-  &.active {
+  &.active,
+  &.working {
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
     border-color: #667eea;

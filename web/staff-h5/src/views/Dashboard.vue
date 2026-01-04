@@ -5,19 +5,19 @@
       <div class="header-content">
         <div class="user-info">
           <div class="user-avatar" :class="userStatus.work_status">
-            {{ userInfo.name?.charAt(0) }}
+            {{ (userInfo.username || userInfo.name || 'U').charAt(0) }}
             <div class="status-indicator" :class="userStatus.work_status"></div>
           </div>
           <div class="user-details">
-            <h2 class="user-name">{{ userInfo.name }}</h2>
+            <h2 class="user-name">{{ userInfo.username || userInfo.name || '用户' }}</h2>
             <p class="user-role">美甲师</p>
             <div class="work-status" :class="userStatus.work_status">
-              {{ userStatus.work_status === 'active' ? '在岗中' : '休息中' }}
+              {{ getWorkStatusText(userStatus.work_status) }}
             </div>
           </div>
         </div>
         <div class="status-toggle" @click="toggleWorkStatus">
-          <i class="toggle-icon">{{ userStatus.work_status === 'active' ? '😴' : '💼' }}</i>
+          <i class="toggle-icon">{{ userStatus.work_status === 'working' ? '😴' : '💼' }}</i>
         </div>
       </div>
     </div>
@@ -129,17 +129,19 @@ import { useRouter } from 'vue-router'
 import { showToast, showConfirmDialog } from 'vant'
 import { useUserStore } from '@/stores/user'
 import { updateMyWorkStatus, getTodayBookings } from '@/api/staff'
+import { getCurrentUser } from '@/api/auth'
 
 const router = useRouter()
 const userStore = useUserStore()
 
 const userInfo = reactive({
-  name: '李师师',
-  phone: '13800000003'
+  username: '',
+  name: '',
+  phone: ''
 })
 
 const userStatus = reactive({
-  work_status: 'active'
+  work_status: 'working' // working, rest, offline
 })
 
 const todayStats = reactive({
@@ -151,10 +153,20 @@ const todayStats = reactive({
 
 const todayBookings = ref([])
 
+// 获取工作状态文本
+const getWorkStatusText = (status) => {
+  const statusMap = {
+    working: '在岗中',
+    rest: '休息中',
+    offline: '离岗'
+  }
+  return statusMap[status] || '未知'
+}
+
 // 切换工作状态
 const toggleWorkStatus = async () => {
-  const newStatus = userStatus.work_status === 'active' ? 'rest' : 'active'
-  const statusText = newStatus === 'active' ? '在岗' : '休息'
+  const newStatus = userStatus.work_status === 'working' ? 'rest' : 'working'
+  const statusText = newStatus === 'working' ? '在岗' : '休息'
   
   try {
     await showConfirmDialog({
@@ -162,8 +174,19 @@ const toggleWorkStatus = async () => {
       message: `确定要切换为${statusText}状态吗？`
     })
 
-    await updateMyWorkStatus({ work_status: newStatus })
+    // 获取当前用户ID
+    const userId = userStore.userInfo?.id
+    if (!userId) {
+      showToast('无法获取用户ID')
+      return
+    }
+    await updateMyWorkStatus({ work_status: newStatus }, userId)
     userStatus.work_status = newStatus
+    // 更新store中的用户信息
+    if (userStore.userInfo) {
+      userStore.userInfo.work_status = newStatus
+      localStorage.setItem('userInfo', JSON.stringify(userStore.userInfo))
+    }
     showToast(`已切换为${statusText}状态`)
   } catch (error) {
     if (error !== 'cancel') {
@@ -203,7 +226,39 @@ const fetchTodayBookings = async () => {
   }
 }
 
+// 获取用户信息
+const fetchUserInfo = async () => {
+  try {
+    const user = userStore.userInfo
+    if (user && Object.keys(user).length > 0) {
+      Object.assign(userInfo, {
+        username: user.username || user.name || '',
+        name: user.name || user.username || '',
+        phone: user.phone || ''
+      })
+      userStatus.work_status = user.work_status || 'working'
+    } else {
+      // 如果本地没有用户信息，尝试从接口获取
+      const response = await getCurrentUser()
+      if (response && response.data) {
+        const userData = response.data.user || response.data
+        Object.assign(userInfo, {
+          username: userData.username || userData.name || '',
+          name: userData.name || userData.username || '',
+          phone: userData.phone || ''
+        })
+        userStatus.work_status = userData.work_status || 'working'
+        // 更新store
+        userStore.userInfo = userData
+      }
+    }
+  } catch (error) {
+    console.error('获取用户信息失败:', error)
+  }
+}
+
 onMounted(() => {
+  fetchUserInfo()
   fetchTodayBookings()
 })
 </script>
@@ -247,7 +302,7 @@ onMounted(() => {
   position: relative;
   border: 3px solid rgba(255, 255, 255, 0.3);
   
-  &.active {
+  &.working {
     background: linear-gradient(135deg, #52c41a, #73d13d);
     border-color: rgba(82, 196, 26, 0.5);
   }
@@ -255,6 +310,11 @@ onMounted(() => {
   &.rest {
     background: linear-gradient(135deg, #faad14, #ffc53d);
     border-color: rgba(250, 173, 20, 0.5);
+  }
+  
+  &.offline {
+    background: linear-gradient(135deg, #999, #bbb);
+    border-color: rgba(153, 153, 153, 0.5);
   }
 }
 
@@ -267,7 +327,7 @@ onMounted(() => {
   border-radius: 50%;
   border: 3px solid white;
   
-  &.active {
+  &.working {
     background: #52c41a;
     animation: pulse-green 2s infinite;
   }
@@ -275,6 +335,10 @@ onMounted(() => {
   &.rest {
     background: #faad14;
     animation: pulse-orange 2s infinite;
+  }
+  
+  &.offline {
+    background: #999;
   }
 }
 
@@ -302,7 +366,7 @@ onMounted(() => {
   font-weight: 600;
   display: inline-block;
   
-  &.active {
+  &.working {
     background: rgba(82, 196, 26, 0.2);
     color: #73d13d;
   }
@@ -310,6 +374,11 @@ onMounted(() => {
   &.rest {
     background: rgba(250, 173, 20, 0.2);
     color: #ffc53d;
+  }
+  
+  &.offline {
+    background: rgba(153, 153, 153, 0.2);
+    color: #999;
   }
 }
 

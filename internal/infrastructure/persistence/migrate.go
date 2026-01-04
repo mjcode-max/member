@@ -3,6 +3,7 @@ package persistence
 import (
 	"fmt"
 	"reflect"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -144,13 +145,43 @@ func Status(db *gorm.DB, log logger.Logger) error {
 // MigrationRecord 迁移记录
 type MigrationRecord struct {
 	ID         uint   `gorm:"primaryKey"`
-	Name       string `gorm:"uniqueIndex;not null"`
+	Name       string `gorm:"uniqueIndex;not null;size:255"` // 指定size避免MySQL TEXT类型索引错误
 	ExecutedAt int64  `gorm:"not null"`
 }
 
 // createMigrationTable 创建迁移记录表
 func createMigrationTable(db *gorm.DB) error {
-	return db.AutoMigrate(&MigrationRecord{})
+	migrator := db.Migrator()
+
+	// 如果表不存在，直接创建
+	if !migrator.HasTable(&MigrationRecord{}) {
+		if err := migrator.CreateTable(&MigrationRecord{}); err != nil {
+			return fmt.Errorf("创建迁移记录表失败: %w", err)
+		}
+		return nil
+	}
+
+	// 如果表已存在，使用 AutoMigrate 更新结构
+	// 如果遇到删除不存在索引的错误，可以忽略（这是 GORM 的已知问题）
+	if err := db.AutoMigrate(&MigrationRecord{}); err != nil {
+		// 检查是否是删除不存在索引的错误，如果是则忽略
+		if isIndexDropError(err) {
+			// 忽略此错误，表结构已经正确
+			return nil
+		}
+		return fmt.Errorf("更新迁移记录表失败: %w", err)
+	}
+
+	return nil
+}
+
+// isIndexDropError 检查错误是否是删除不存在的索引
+func isIndexDropError(err error) bool {
+	if err == nil {
+		return false
+	}
+	errStr := err.Error()
+	return strings.Contains(errStr, "Can't DROP") && strings.Contains(errStr, "check that column/key exists")
 }
 
 // isMigrationExecuted 检查迁移是否已执行

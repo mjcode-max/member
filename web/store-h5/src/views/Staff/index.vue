@@ -61,12 +61,12 @@
         >
           <div class="staff-header">
             <div class="staff-info">
-              <div class="staff-avatar" :class="staff.work_status">
-                {{ staff.name.charAt(0) }}
-                <div class="status-indicator" :class="staff.work_status"></div>
+              <div class="staff-avatar" :class="getWorkStatusClass(staff.work_status)">
+                {{ (staff.username || staff.name || 'U').charAt(0) }}
+                <div class="status-indicator" :class="getWorkStatusClass(staff.work_status)"></div>
               </div>
               <div class="staff-details">
-                <h4 class="staff-name">{{ staff.name }}</h4>
+                <h4 class="staff-name">{{ staff.username || staff.name || '未命名' }}</h4>
                 <p class="staff-phone">{{ formatPhone(staff.phone) }}</p>
                 <div class="staff-meta">
                   <span class="join-date">入职 {{ formatDate(staff.created_at) }}</span>
@@ -77,15 +77,15 @@
               <div class="work-status-toggle">
                 <div 
                   class="status-option"
-                  :class="{ active: staff.work_status === 'active' }"
-                  @click.stop="updateWorkStatus(staff.id, 'active')"
+                  :class="{ active: getWorkStatusClass(staff.work_status) === 'working' }"
+                  @click.stop="updateWorkStatus(staff.id, 'working')"
                 >
                   <i class="status-icon">💼</i>
                   <span>在岗</span>
                 </div>
                 <div 
                   class="status-option"
-                  :class="{ active: staff.work_status === 'rest' }"
+                  :class="{ active: getWorkStatusClass(staff.work_status) === 'rest' }"
                   @click.stop="updateWorkStatus(staff.id, 'rest')"
                 >
                   <i class="status-icon">😴</i>
@@ -95,7 +95,7 @@
             </div>
           </div>
 
-          <div class="staff-stats" v-if="staff.work_status === 'active'">
+          <div class="staff-stats" v-if="getWorkStatusClass(staff.work_status) === 'working'">
             <div class="stat-row">
               <div class="stat-col">
                 <span class="stat-value">{{ staff.today_bookings || 0 }}</span>
@@ -136,11 +136,11 @@
         </div>
         <div class="dialog-content">
           <div class="form-group">
-            <label class="form-label">员工姓名</label>
+            <label class="form-label">用户名</label>
             <input 
-              v-model="newStaff.name"
+              v-model="newStaff.username"
               type="text"
-              placeholder="请输入员工姓名"
+              placeholder="请输入用户名"
               class="form-input"
             />
           </div>
@@ -168,7 +168,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onActivated } from 'vue'
 import { showToast, showConfirmDialog } from 'vant'
 import { getStaffList, createStaff, updateStaffStatus } from '@/api/staff'
 import dayjs from 'dayjs'
@@ -178,13 +178,17 @@ const selectedStaff = ref([])
 const staffList = ref([])
 
 const newStaff = reactive({
-  name: '',
-  phone: ''
+  username: '',
+  phone: '',
+  password: '123456'
 })
 
 // 统计数据
 const totalStaff = computed(() => staffList.value.length)
-const activeStaff = computed(() => staffList.value.filter(s => s.work_status === 'active').length)
+const activeStaff = computed(() => staffList.value.filter(s => {
+  const status = s.work_status
+  return status === 'working' || status === 'active'
+}).length)
 const restStaff = computed(() => staffList.value.filter(s => s.work_status === 'rest').length)
 const todayServices = ref(25)
 
@@ -192,28 +196,65 @@ const todayServices = ref(25)
 const fetchStaffList = async () => {
   try {
     const response = await getStaffList()
-    staffList.value = response.data || []
+    // 处理分页响应格式
+    if (response && response.data) {
+      if (response.data.list && Array.isArray(response.data.list)) {
+        staffList.value = response.data.list
+      } else if (Array.isArray(response.data)) {
+        staffList.value = response.data
+      } else {
+        staffList.value = []
+      }
+    } else {
+      staffList.value = []
+    }
   } catch (error) {
     console.error('获取员工列表失败:', error)
+    staffList.value = []
   }
 }
 
 // 更新工作状态
 const updateWorkStatus = async (staffId, status) => {
   try {
-    await updateStaffStatus(staffId, { work_status: status })
+    // 后端使用 working/rest/offline，前端需要转换
+    const backendStatus = status === 'active' ? 'working' : status
+    await updateStaffStatus(staffId, { work_status: backendStatus })
     
     // 更新本地数据
     const staff = staffList.value.find(s => s.id === staffId)
     if (staff) {
-      staff.work_status = status
+      // 后端返回的是 working/rest/offline，前端显示需要转换
+      staff.work_status = backendStatus
     }
     
-    showToast(`已设置为${status === 'active' ? '在岗' : '休息'}状态`)
+    showToast(`已设置为${getWorkStatusText(backendStatus)}状态`)
+    // 重新获取列表以确保数据同步
+    await fetchStaffList()
   } catch (error) {
     console.error('更新工作状态失败:', error)
     showToast('更新失败，请重试')
   }
+}
+
+// 获取工作状态文本
+const getWorkStatusText = (status) => {
+  if (!status) return '未知'
+  const statusMap = {
+    working: '在岗',
+    rest: '休息',
+    offline: '离岗',
+    active: '在岗' // 兼容旧数据
+  }
+  return statusMap[status] || '未知'
+}
+
+// 获取工作状态样式类
+const getWorkStatusClass = (status) => {
+  if (!status) return 'offline'
+  // 兼容旧数据
+  if (status === 'active') return 'working'
+  return status
 }
 
 // 批量设置状态
@@ -224,14 +265,16 @@ const batchSetStatus = async (status) => {
   }
 
   try {
+    const statusText = status === 'active' || status === 'working' ? '在岗' : '休息'
     await showConfirmDialog({
       title: '确认操作',
-      message: `确定要将选中的${selectedStaff.value.length}名员工设置为${status === 'active' ? '在岗' : '休息'}状态吗？`
+      message: `确定要将选中的${selectedStaff.value.length}名员工设置为${statusText}状态吗？`
     })
 
     // 批量更新
+    const backendStatus = status === 'active' ? 'working' : status
     for (const staffId of selectedStaff.value) {
-      await updateWorkStatus(staffId, status)
+      await updateWorkStatus(staffId, backendStatus)
     }
 
     selectedStaff.value = []
@@ -253,17 +296,23 @@ const toggleSelect = (staffId) => {
 
 // 添加员工
 const addStaff = async () => {
-  if (!newStaff.name || !newStaff.phone) {
+  if (!newStaff.username || !newStaff.phone) {
     showToast('请填写完整信息')
     return
   }
 
   try {
-    await createStaff(newStaff)
+    const data = {
+      username: newStaff.username,
+      phone: newStaff.phone,
+      password: newStaff.password || '123456'
+    }
+    await createStaff(data)
     showToast('员工添加成功')
     showAddDialog.value = false
-    newStaff.name = ''
+    newStaff.username = ''
     newStaff.phone = ''
+    newStaff.password = '123456'
     fetchStaffList()
   } catch (error) {
     console.error('添加员工失败:', error)
@@ -282,6 +331,11 @@ const formatDate = (date) => {
 }
 
 onMounted(() => {
+  fetchStaffList()
+})
+
+// 页面激活时刷新数据（从其他页面返回时）
+onActivated(() => {
   fetchStaffList()
 })
 </script>
@@ -476,12 +530,17 @@ onMounted(() => {
   color: white;
   position: relative;
   
+  &.working,
   &.active {
     background: linear-gradient(135deg, #52c41a, #73d13d);
   }
   
   &.rest {
     background: linear-gradient(135deg, #faad14, #ffc53d);
+  }
+  
+  &.offline {
+    background: linear-gradient(135deg, #999, #bbb);
   }
 }
 
@@ -494,12 +553,17 @@ onMounted(() => {
   border-radius: 50%;
   border: 2px solid white;
   
+  &.working,
   &.active {
     background: #52c41a;
   }
   
   &.rest {
     background: #faad14;
+  }
+  
+  &.offline {
+    background: #999;
   }
 }
 
