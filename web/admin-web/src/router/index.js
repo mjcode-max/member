@@ -56,6 +56,24 @@ const routes = [
         meta: { title: '员工管理', icon: 'Avatar' }
       },
       {
+        path: 'users',
+        name: 'Users',
+        component: () => import('@/views/Users/index.vue'),
+        meta: { title: '用户管理', icon: 'UserFilled' }
+      },
+      {
+        path: 'users/create',
+        name: 'UserCreate',
+        component: () => import('@/views/Users/Create.vue'),
+        meta: { title: '创建用户', hidden: true }
+      },
+      {
+        path: 'users/:id/edit',
+        name: 'UserEdit',
+        component: () => import('@/views/Users/Edit.vue'),
+        meta: { title: '编辑用户', hidden: true }
+      },
+      {
         path: 'payments',
         name: 'Payments',
         component: () => import('@/views/Payments/index.vue'),

@@ -14,6 +14,7 @@ type Config struct {
 	Redis    RedisConfig    `mapstructure:"redis"`
 	Log      LogConfig      `mapstructure:"log"`
 	Auth     AuthConfig     `mapstructure:"auth"`
+	Admin    AdminConfig    `mapstructure:"admin"`
 }
 
 // ServerConfig 服务器配置
@@ -67,6 +68,12 @@ type LogConfig struct {
 type AuthConfig struct {
 	JWTSecret    string `mapstructure:"jwt_secret"`
 	TokenExpires int    `mapstructure:"token_expires"` // 秒
+}
+
+// AdminConfig 默认管理员配置
+type AdminConfig struct {
+	Username string `mapstructure:"username"`
+	Password string `mapstructure:"password"`
 }
 
 func (cfg *Config) GetJwtSecret() string {
@@ -136,4 +143,7 @@ func setDefaults() {
 
 	viper.SetDefault("auth.jwt_secret", "your-secret-key-change-in-production")
 	viper.SetDefault("auth.token_expires", 7200) // 2小时
+
+	viper.SetDefault("admin.username", "admin")
+	viper.SetDefault("admin.password", "admin123")
 }

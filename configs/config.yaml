@@ -6,11 +6,11 @@ server:
 
 database:
   type: mysql # 数据库类型: mysql, postgres, file
-  host: localhost
+  host: 62.234.29.122
   port: 3306
   user: root
-  password: ""
-  dbname: member_pre
+  password: beautifully.
+  dbname: member-db
   charset: utf8mb4
   parse_time: true
   loc: Local
@@ -20,16 +20,16 @@ database:
   conn_max_lifetime: 3600
 
 redis:
-  host: localhost
+  host: 101.126.19.137
   port: 6379
-  password: ""
-  db: 0
+  password: beautifully.
+  db: 5
   pool_size: 10
   min_idle_conns: 5
 
 log:
   level: info # debug, info, warn, error
-  format: json # json, text
+  format: text # json, text
   output: stdout # stdout, file
   file_path: logs/domain.log
   max_size: 100 # MB
@@ -38,6 +38,11 @@ log:
   compress: true
 
 auth:
-  jwt_secret: your-secret-key-change-in-production # JWT密钥，生产环境请修改
+  jwt_secret: 02d84098e189c1a4a90b525052d3afa1f46a9818e127e27f38c6a18d7777a7bf # JWT密钥，生产环境请修改
   token_expires: 7200 # token过期时间（秒），默认2小时
+
+# 默认管理员账户（仅在数据库迁移时创建，如果已存在则跳过）
+admin:
+  username: admin # 管理员用户名
+  password: admin123 # 管理员密码（生产环境请修改）
 

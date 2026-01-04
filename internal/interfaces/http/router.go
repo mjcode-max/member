@@ -3,6 +3,7 @@ package http
 import (
 	"github.com/gin-gonic/gin"
 	"member-pre/internal/domain/auth"
+	"member-pre/internal/domain/user"
 	httpInfra "member-pre/internal/infrastructure/http"
 	"member-pre/internal/interfaces/http/handler"
 	"member-pre/pkg/logger"
@@ -67,22 +68,28 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 		usersProtected := usersGroup.Group("")
 		usersProtected.Use(httpInfra.AuthMiddleware(r.authService, r.logger))
 		{
-			// 获取用户详情
-			usersProtected.GET("/:id", r.userHandler.GetUser)
-			// 更新美甲师工作状态
-			usersProtected.PUT("/:id/work-status", r.userHandler.UpdateWorkStatus)
-		}
-	}
+			// 获取用户列表（后台、店长）
+			// 后台可以查看所有用户，店长只能查看自己门店的美甲师
+			usersProtected.GET("", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.userHandler.GetUserList)
 
-	// ==================== 门店相关路由 ====================
-	storesGroup := api.Group("/stores")
-	{
-		// 需要认证的路由组
-		storesProtected := storesGroup.Group("")
-		storesProtected.Use(httpInfra.AuthMiddleware(r.authService, r.logger))
-		{
-			// 根据门店获取用户列表
-			storesProtected.GET("/:store_id/users", r.userHandler.GetUsersByStore)
+			// 创建用户（后台、店长）
+			// 后台可以创建所有角色，店长只能创建美甲师
+			usersProtected.POST("", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.userHandler.CreateUser)
+
+			// 获取用户详情（所有已认证用户）
+			// 后台可以查看所有用户，店长可以查看自己门店的用户，美甲师和顾客只能查看自己的信息
+			usersProtected.GET("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.userHandler.GetUser)
+
+			// 更新用户（后台、店长、美甲师、顾客）
+			// 后台可以更新所有用户，店长可以更新自己门店的用户，美甲师和顾客只能更新自己的信息
+			usersProtected.PUT("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.userHandler.UpdateUser)
+
+			// 更新用户状态（仅后台）
+			usersProtected.PUT("/:id/status", httpInfra.RoleMiddleware(user.RoleAdmin), r.userHandler.UpdateUserStatus)
+
+			// 更新美甲师工作状态（后台、店长、美甲师）
+			// 后台可以更新任何美甲师，店长可以更新自己门店的美甲师，美甲师只能更新自己的状态
+			usersProtected.PUT("/:id/work-status", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.userHandler.UpdateWorkStatus)
 		}
 	}
 }

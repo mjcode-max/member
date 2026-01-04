@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"golang.org/x/crypto/bcrypt"
 	"member-pre/pkg/errors"
 	"member-pre/pkg/logger"
 )
@@ -31,17 +32,17 @@ const (
 
 // User 用户实体
 type User struct {
-	ID          uint      `json:"id"`
-	Username    string    `json:"username"`     // 用户名（员工使用）
-	Email       string    `json:"email"`        // 邮箱
-	Phone       string    `json:"phone"`        // 手机号（顾客和员工都可能有）
-	Password    string    `json:"-"`            // 密码（不序列化，顾客无密码）
-	Role        string    `json:"role"`         // 角色: admin, store_manager, technician, customer
-	Status      string    `json:"status"`      // 状态: active, inactive
-	StoreID     *uint     `json:"store_id"`     // 门店ID（店长和美甲师必须关联，顾客和总后台为nil）
-	WorkStatus  *string   `json:"work_status"` // 工作状态（仅美甲师有效）: working, rest, offline
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID         uint      `json:"id"`
+	Username   string    `json:"username"`    // 用户名（员工使用）
+	Email      string    `json:"email"`       // 邮箱
+	Phone      string    `json:"phone"`       // 手机号（顾客和员工都可能有）
+	Password   string    `json:"-"`           // 密码（不序列化，顾客无密码）
+	Role       string    `json:"role"`        // 角色: admin, store_manager, technician, customer
+	Status     string    `json:"status"`      // 状态: active, inactive
+	StoreID    *uint     `json:"store_id"`    // 门店ID（店长和美甲师必须关联，顾客和总后台为nil）
+	WorkStatus *string   `json:"work_status"` // 工作状态（仅美甲师有效）: working, rest, offline
+	CreatedAt  time.Time `json:"created_at"`
+	UpdatedAt  time.Time `json:"updated_at"`
 }
 
 // IUserRepository 用户仓储接口
@@ -52,6 +53,8 @@ type IUserRepository interface {
 	FindByPhone(ctx context.Context, phone string) (*User, error)
 	// FindByID 根据ID查找用户
 	FindByID(ctx context.Context, id uint) (*User, error)
+	// FindList 获取用户列表（支持筛选和分页）
+	FindList(ctx context.Context, role, status string, storeID *uint, username, phone string, page, pageSize int) ([]*User, int64, error)
 	// Create 创建用户
 	Create(ctx context.Context, user *User) error
 	// Update 更新用户
@@ -162,10 +165,10 @@ func (s *UserService) CreateOrGetCustomer(ctx context.Context, phone string) (*U
 
 	// 不存在则创建新顾客
 	newUser := &User{
-		Phone:    phone,
-		Role:     RoleCustomer,
-		Status:   StatusActive,
-		StoreID:  nil,
+		Phone:     phone,
+		Role:      RoleCustomer,
+		Status:    StatusActive,
+		StoreID:   nil,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -207,6 +210,215 @@ func (s *UserService) UpdateWorkStatus(ctx context.Context, userID uint, workSta
 	}
 
 	s.logger.Info("更新工作状态成功", logger.NewField("user_id", userID), logger.NewField("work_status", workStatus))
+	return nil
+}
+
+// GetList 获取用户列表（支持筛选和分页）
+func (s *UserService) GetList(ctx context.Context, role, status string, storeID *uint, username, phone string, page, pageSize int) ([]*User, int64, error) {
+	s.logger.Debug("获取用户列表",
+		logger.NewField("role", role),
+		logger.NewField("status", status),
+		logger.NewField("store_id", storeID),
+		logger.NewField("username", username),
+		logger.NewField("phone", phone),
+		logger.NewField("page", page),
+		logger.NewField("page_size", pageSize),
+	)
+
+	users, total, err := s.repo.FindList(ctx, role, status, storeID, username, phone, page, pageSize)
+	if err != nil {
+		s.logger.Error("获取用户列表失败", logger.NewField("error", err.Error()))
+		return nil, 0, err
+	}
+
+	return users, total, nil
+}
+
+// Create 创建用户
+func (s *UserService) Create(ctx context.Context, u *User) error {
+	s.logger.Info("创建用户",
+		logger.NewField("username", u.Username),
+		logger.NewField("phone", u.Phone),
+		logger.NewField("role", u.Role),
+	)
+
+	// 验证角色
+	if u.Role != RoleAdmin && u.Role != RoleStoreManager && u.Role != RoleTechnician && u.Role != RoleCustomer {
+		return ErrInvalidRole
+	}
+
+	// 验证店长和美甲师必须关联门店
+	if (u.Role == RoleStoreManager || u.Role == RoleTechnician) && u.StoreID == nil {
+		return ErrStoreRequired
+	}
+
+	// 验证用户名或手机号至少有一个
+	if u.Username == "" && u.Phone == "" {
+		return ErrPhoneRequired
+	}
+
+	// 检查用户名是否已存在
+	if u.Username != "" {
+		existing, err := s.repo.FindByUsername(ctx, u.Username)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
+			return errors.ErrInvalidParams("用户名已存在")
+		}
+	}
+
+	// 检查手机号是否已存在
+	if u.Phone != "" {
+		existing, err := s.repo.FindByPhone(ctx, u.Phone)
+		if err != nil {
+			return err
+		}
+		if existing != nil {
+			return errors.ErrInvalidParams("手机号已存在")
+		}
+	}
+
+	// 加密密码（如果提供）
+	if u.Password != "" {
+		hashedPassword, err := hashPassword(u.Password)
+		if err != nil {
+			s.logger.Error("加密密码失败", logger.NewField("error", err.Error()))
+			return errors.ErrInvalidParams("密码加密失败")
+		}
+		u.Password = hashedPassword
+	}
+
+	u.CreatedAt = time.Now()
+	u.UpdatedAt = time.Now()
+	if u.Status == "" {
+		u.Status = StatusActive
+	}
+
+	if err := s.repo.Create(ctx, u); err != nil {
+		s.logger.Error("创建用户失败", logger.NewField("error", err.Error()))
+		return err
+	}
+
+	s.logger.Info("创建用户成功", logger.NewField("user_id", u.ID))
+	return nil
+}
+
+// Update 更新用户
+func (s *UserService) Update(ctx context.Context, u *User) error {
+	s.logger.Info("更新用户", logger.NewField("user_id", u.ID))
+
+	// 检查用户是否存在
+	existing, err := s.repo.FindByID(ctx, u.ID)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return ErrUserNotFound
+	}
+
+	// 验证角色
+	if u.Role != "" && u.Role != RoleAdmin && u.Role != RoleStoreManager && u.Role != RoleTechnician && u.Role != RoleCustomer {
+		return ErrInvalidRole
+	}
+
+	// 验证店长和美甲师必须关联门店
+	if (u.Role == RoleStoreManager || u.Role == RoleTechnician) && u.StoreID == nil {
+		return ErrStoreRequired
+	}
+
+	// 如果更新用户名，检查是否冲突
+	if u.Username != "" && u.Username != existing.Username {
+		existingByUsername, err := s.repo.FindByUsername(ctx, u.Username)
+		if err != nil {
+			return err
+		}
+		if existingByUsername != nil && existingByUsername.ID != u.ID {
+			return errors.ErrInvalidParams("用户名已存在")
+		}
+	}
+
+	// 如果更新手机号，检查是否冲突
+	if u.Phone != "" && u.Phone != existing.Phone {
+		existingByPhone, err := s.repo.FindByPhone(ctx, u.Phone)
+		if err != nil {
+			return err
+		}
+		if existingByPhone != nil && existingByPhone.ID != u.ID {
+			return errors.ErrInvalidParams("手机号已存在")
+		}
+	}
+
+	// 保留原有字段（如果新字段为空）
+	if u.Username == "" {
+		u.Username = existing.Username
+	}
+	if u.Phone == "" {
+		u.Phone = existing.Phone
+	}
+	if u.Email == "" {
+		u.Email = existing.Email
+	}
+	if u.Role == "" {
+		u.Role = existing.Role
+	}
+	if u.Status == "" {
+		u.Status = existing.Status
+	}
+	if u.StoreID == nil {
+		u.StoreID = existing.StoreID
+	}
+	if u.WorkStatus == nil {
+		u.WorkStatus = existing.WorkStatus
+	}
+	// 如果提供了新密码，则加密更新；否则保留原密码
+	if u.Password != "" && u.Password != existing.Password {
+		hashedPassword, err := hashPassword(u.Password)
+		if err != nil {
+			s.logger.Error("加密密码失败", logger.NewField("error", err.Error()))
+			return errors.ErrInvalidParams("密码加密失败")
+		}
+		u.Password = hashedPassword
+	} else {
+		u.Password = existing.Password
+	}
+
+	u.UpdatedAt = time.Now()
+
+	if err := s.repo.Update(ctx, u); err != nil {
+		s.logger.Error("更新用户失败", logger.NewField("error", err.Error()))
+		return err
+	}
+
+	s.logger.Info("更新用户成功", logger.NewField("user_id", u.ID))
+	return nil
+}
+
+// UpdateStatus 更新用户状态
+func (s *UserService) UpdateStatus(ctx context.Context, userID uint, status string) error {
+	s.logger.Info("更新用户状态", logger.NewField("user_id", userID), logger.NewField("status", status))
+
+	if status != StatusActive && status != StatusInactive {
+		return errors.ErrInvalidParams("无效的用户状态")
+	}
+
+	user, err := s.repo.FindByID(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user == nil {
+		return ErrUserNotFound
+	}
+
+	user.Status = status
+	user.UpdatedAt = time.Now()
+
+	if err := s.repo.Update(ctx, user); err != nil {
+		s.logger.Error("更新用户状态失败", logger.NewField("error", err.Error()))
+		return err
+	}
+
+	s.logger.Info("更新用户状态成功", logger.NewField("user_id", userID), logger.NewField("status", status))
 	return nil
 }
 
@@ -298,4 +510,13 @@ func CanAccessUser(currentUser *User, targetUserID uint) bool {
 	}
 
 	return false
+}
+
+// hashPassword 加密密码
+func hashPassword(password string) (string, error) {
+	bytes, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+	return string(bytes), nil
 }

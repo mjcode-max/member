@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/signal"
 	"syscall"
@@ -66,7 +67,7 @@ var serverCmd = &cobra.Command{
 		}
 
 		// 同步日志
-		if err := app.Logger.Sync(); err != nil {
+		if err := app.Logger.Sync(); err != nil && !errors.Is(err, syscall.ENOTTY) {
 			app.Logger.Error("同步日志失败", logger.NewField("error", err.Error()))
 		}
 

@@ -25,3 +25,12 @@ export const recordConsumption = (data) => {
     data
   })
 }
+
+// 验证会员码
+export const verifyMemberCode = (data) => {
+  return request({
+    url: '/staff/members/verify-code',
+    method: 'post',
+    data
+  })
+}

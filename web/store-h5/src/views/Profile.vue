@@ -14,10 +14,10 @@
       <div class="user-card">
         <div class="user-avatar">
           <div class="avatar-circle">
-            {{ userStore.userInfo.name?.charAt(0) || 'U' }}
+            {{ (userStore.userInfo.username || userStore.userInfo.name || 'U').charAt(0) }}
           </div>
           <div class="user-details">
-            <div class="user-name">{{ userStore.userInfo.name || '用户' }}</div>
+            <div class="user-name">{{ userStore.userInfo.username || userStore.userInfo.name || '用户' }}</div>
             <div class="user-role">店长</div>
           </div>
         </div>

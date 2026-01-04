@@ -12,6 +12,8 @@ import (
 	"member-pre/pkg/logger"
 )
 
+var _ user.IUserRepository = (*UserRepository)(nil)
+
 // UserRepository 用户仓储实现
 type UserRepository struct {
 	db     database.Database
@@ -21,6 +23,7 @@ type UserRepository struct {
 
 // NewUserRepository 创建用户仓储实例
 func NewUserRepository(db database.Database, rdb *persistence.Client, log logger.Logger) *UserRepository {
+	persistence.Register(&UserModel{})
 	return &UserRepository{
 		db:     db,
 		redis:  rdb,
@@ -37,7 +40,7 @@ type UserModel struct {
 	Password   string         `gorm:"size:255" json:"-"`
 	Role       string         `gorm:"size:20;default:'customer';not null" json:"role"`
 	Status     string         `gorm:"size:20;default:'active';not null" json:"status"`
-	StoreID    *uint          `gorm:"index" json:"store_id"` // 店长和美甲师必须关联门店
+	StoreID    *uint          `gorm:"index" json:"store_id"`      // 店长和美甲师必须关联门店
 	WorkStatus *string        `gorm:"size:20" json:"work_status"` // 美甲师工作状态
 	CreatedAt  time.Time      `json:"created_at"`
 	UpdatedAt  time.Time      `json:"updated_at"`
@@ -259,6 +262,70 @@ func (r *UserRepository) UpdateWorkStatus(ctx context.Context, userID uint, work
 	return nil
 }
 
+// FindList 获取用户列表（支持筛选和分页）
+func (r *UserRepository) FindList(ctx context.Context, role, status string, storeID *uint, username, phone string, page, pageSize int) ([]*user.User, int64, error) {
+	r.logger.Debug("查找用户列表",
+		logger.NewField("role", role),
+		logger.NewField("status", status),
+		logger.NewField("store_id", storeID),
+		logger.NewField("username", username),
+		logger.NewField("phone", phone),
+		logger.NewField("page", page),
+		logger.NewField("page_size", pageSize),
+	)
+
+	var models []UserModel
+	var total int64
+
+	query := r.db.DB().WithContext(ctx).Model(&UserModel{})
+
+	// 筛选条件
+	if role != "" {
+		query = query.Where("role = ?", role)
+	}
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if storeID != nil {
+		query = query.Where("store_id = ?", *storeID)
+	}
+	if username != "" {
+		query = query.Where("username LIKE ?", "%"+username+"%")
+	}
+	if phone != "" {
+		query = query.Where("phone LIKE ?", "%"+phone+"%")
+	}
+
+	// 获取总数
+	if err := query.Count(&total).Error; err != nil {
+		r.logger.Error("获取用户总数失败",
+			logger.NewField("error", err.Error()),
+		)
+		return nil, 0, errors.ErrDatabase(err)
+	}
+
+	// 分页查询
+	offset := (page - 1) * pageSize
+	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&models).Error; err != nil {
+		r.logger.Error("查找用户列表失败",
+			logger.NewField("error", err.Error()),
+		)
+		return nil, 0, errors.ErrDatabase(err)
+	}
+
+	users := make([]*user.User, 0, len(models))
+	for _, model := range models {
+		users = append(users, model.ToEntity())
+	}
+
+	r.logger.Debug("查找用户列表成功",
+		logger.NewField("count", len(users)),
+		logger.NewField("total", total),
+	)
+
+	return users, total, nil
+}
+
 // FindByStoreID 根据门店ID查找用户（店长和美甲师）
 func (r *UserRepository) FindByStoreID(ctx context.Context, storeID uint, role string) ([]*user.User, error) {
 	r.logger.Debug("查找用户：根据门店ID",
@@ -292,4 +359,3 @@ func (r *UserRepository) FindByStoreID(ctx context.Context, storeID uint, role s
 
 	return users, nil
 }
-
