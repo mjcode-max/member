@@ -48,6 +48,12 @@ const routes = [
         name: 'Profile',
         component: () => import('@/views/Profile.vue'),
         meta: { title: '个人中心', icon: 'user-o' }
+      },
+      {
+        path: 'store-info',
+        name: 'StoreInfo',
+        component: () => import('@/views/StoreInfo.vue'),
+        meta: { title: '门店信息', hidden: true }
       }
     ]
   },

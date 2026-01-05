@@ -29,8 +29,9 @@
             style="width: 150px"
             @change="handleSearch"
           >
-            <el-option label="营业中" value="active" />
-            <el-option label="已停业" value="inactive" />
+            <el-option label="营业中" value="operating" />
+            <el-option label="停业" value="closed" />
+            <el-option label="关闭" value="shutdown" />
           </el-select>
         </el-form-item>
         
@@ -63,12 +64,19 @@
         
         <el-table-column prop="phone" label="联系电话" width="120" />
         
-        <el-table-column prop="business_hours" label="营业时间" width="120" />
+        <el-table-column label="营业时间" width="150">
+          <template #default="{ row }">
+            <span v-if="row.business_hours_start && row.business_hours_end">
+              {{ row.business_hours_start }} - {{ row.business_hours_end }}
+            </span>
+            <span v-else>-</span>
+          </template>
+        </el-table-column>
         
         <el-table-column prop="status" label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.status === 'active' ? 'success' : 'danger'">
-              {{ row.status === 'active' ? '营业中' : '已停业' }}
+            <el-tag :type="getStatusType(row.status)">
+              {{ getStatusText(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -147,13 +155,38 @@ const fetchStoreList = async () => {
     }
     
     const response = await getStores(params)
-    storeList.value = response.data.stores
-    pagination.total = response.data.total
+    // 后端返回格式: { code: 200, data: { list: [], pagination: { total, page, page_size } } }
+    if (response.data && response.data.list) {
+      storeList.value = response.data.list
+      pagination.total = response.data.pagination?.total || 0
+    } else {
+      // 兼容旧格式
+      storeList.value = response.data?.stores || []
+      pagination.total = response.data?.total || 0
+    }
   } catch (error) {
     console.error('获取门店列表失败:', error)
   } finally {
     loading.value = false
   }
+}
+
+// 获取状态文本
+const getStatusText = (status) => {
+  const statusMap = {
+    'operating': '营业中',
+    'closed': '停业',
+    'shutdown': '关闭'
+  }
+  return statusMap[status] || status
+}
+
+// 获取状态类型
+const getStatusType = (status) => {
+  if (status === 'operating') return 'success'
+  if (status === 'closed') return 'warning'
+  if (status === 'shutdown') return 'danger'
+  return 'info'
 }
 
 // 搜索

@@ -3,7 +3,7 @@ import request from './request'
 // 获取门店列表
 export const getStores = (params) => {
   return request({
-    url: '/admin/stores',
+    url: '/stores',
     method: 'get',
     params
   })
@@ -12,7 +12,7 @@ export const getStores = (params) => {
 // 获取门店详情
 export const getStoreById = (id) => {
   return request({
-    url: `/admin/stores/${id}`,
+    url: `/stores/${id}`,
     method: 'get'
   })
 }
@@ -20,7 +20,7 @@ export const getStoreById = (id) => {
 // 创建门店
 export const createStore = (data) => {
   return request({
-    url: '/admin/stores',
+    url: '/stores',
     method: 'post',
     data
   })
@@ -29,7 +29,7 @@ export const createStore = (data) => {
 // 更新门店
 export const updateStore = (id, data) => {
   return request({
-    url: `/admin/stores/${id}`,
+    url: `/stores/${id}`,
     method: 'put',
     data
   })
@@ -38,7 +38,16 @@ export const updateStore = (id, data) => {
 // 删除门店
 export const deleteStore = (id) => {
   return request({
-    url: `/admin/stores/${id}`,
+    url: `/stores/${id}`,
     method: 'delete'
+  })
+}
+
+// 更新门店状态
+export const updateStoreStatus = (id, status) => {
+  return request({
+    url: `/stores/${id}/status`,
+    method: 'put',
+    data: { status }
   })
 }

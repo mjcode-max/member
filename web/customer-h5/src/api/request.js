@@ -40,7 +40,8 @@ request.interceptors.response.use(
     }
     
     // 统一处理响应数据 - 后端返回格式: { code, message, data }
-    if (data.code === 200 || data.code === 201) {
+    // 成功状态码：0（分页接口）, 200, 201
+    if (data.code === 200 || data.code === 201 || data.code === 0) {
       return data
     } else if (data.code === 401 || data.code === 403) {
       // token过期或权限不足，清除用户信息并跳转到登录页

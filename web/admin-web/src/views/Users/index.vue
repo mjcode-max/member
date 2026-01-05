@@ -213,6 +213,7 @@ import { ref, reactive, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getUsers, updateUserStatus, updateWorkStatus } from '@/api/users'
+import { getStores } from '@/api/stores'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -295,19 +296,28 @@ const getStoreName = (storeId) => {
   return store ? store.name : '-'
 }
 
-// 假的门店数据（用于测试）
-const mockStores = [
-  { id: 1, name: '总店' },
-  { id: 2, name: '分店A' },
-  { id: 3, name: '分店B' },
-  { id: 4, name: '分店C' },
-  { id: 5, name: '分店D' }
-]
-
-// 获取门店列表（使用假数据）
-const fetchStoreList = () => {
-  // 直接使用假数据，用于测试
-  storeList.value = mockStores
+// 获取门店列表
+const fetchStoreList = async () => {
+  try {
+    // 获取所有门店，设置较大的 page_size 以获取全部数据
+    const response = await getStores({
+      page: 1,
+      page_size: 1000
+    })
+    
+    // 后端返回格式: { code: 200, data: { list: [], pagination: {...} } }
+    if (response.data && response.data.list) {
+      storeList.value = response.data.list
+    } else if (Array.isArray(response.data)) {
+      storeList.value = response.data
+    } else {
+      storeList.value = []
+    }
+  } catch (error) {
+    console.error('获取门店列表失败:', error)
+    ElMessage.error('获取门店列表失败')
+    storeList.value = []
+  }
 }
 
 // 获取用户列表

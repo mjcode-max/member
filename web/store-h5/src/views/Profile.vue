@@ -75,7 +75,7 @@ const userStore = useUserStore()
 const handleMenuClick = (type) => {
   switch (type) {
     case 'store':
-      showToast('门店信息功能开发中...')
+      router.push('/store-info')
       break
     case 'password':
       showToast('修改密码功能开发中...')
