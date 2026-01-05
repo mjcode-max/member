@@ -56,8 +56,8 @@ link:
 package: clean deps wire swagger link test
 	@echo "开始打包..."
 	@mkdir -p build/bin build/configs build/dist
-	@echo "构建后端二进制..."
-	@go build -ldflags="-s -w" -o build/bin/server ./cmd
+	@echo "构建后端二进制 (linux/amd64)..."
+	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build/bin/server ./cmd
 	@echo "复制配置文件..."
 	@cp -r configs/* build/configs/
 	@echo "复制文档和脚本..."
