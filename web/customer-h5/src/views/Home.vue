@@ -212,22 +212,24 @@ const allStores = ref([])
 // 获取门店列表
 const fetchStores = async () => {
   try {
-    // 获取所有门店（包括营业中、停业、关闭）
+    // 只获取营业中的门店
     const response = await getStores({
-      status: 'operating', // 获取所有门店
+      status: 'operating',
       page: 1,
       page_size: 100
     })
     // 后端返回格式：{ code: 0, data: { list: [...], pagination: {...} } }
+    let stores = []
     if (response.data?.list) {
-      allStores.value = response.data.list
+      stores = response.data.list
     } else if (Array.isArray(response.data)) {
-      allStores.value = response.data
+      stores = response.data
     } else if (response.data?.stores) {
-      allStores.value = response.data.stores
-    } else {
-      allStores.value = []
+      stores = response.data.stores
     }
+    
+    // 过滤：只显示营业中的门店（双重保险）
+    allStores.value = stores.filter(store => store.status === 'operating')
     
     // 模拟附近门店（取前3个）
     nearbyStores.value = allStores.value.slice(0, 3).map(store => ({
