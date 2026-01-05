@@ -3,7 +3,7 @@
     <el-card>
       <template #header>
         <div class="card-header">
-          <span>创建用户</span>
+          <span>新建员工</span>
           <el-button @click="handleCancel">返回</el-button>
         </div>
       </template>
@@ -40,7 +40,6 @@
             <el-option label="总后台" value="admin" />
             <el-option label="店长" value="store_manager" />
             <el-option label="美甲师" value="technician" />
-            <el-option label="顾客" value="customer" />
           </el-select>
         </el-form-item>
         
@@ -102,39 +101,27 @@ const form = reactive({
 const rules = {
   username: [
     {
-      validator: (rule, value, callback) => {
-        if (form.role && form.role !== 'customer' && !value) {
-          callback(new Error('员工必须输入用户名'))
-        } else {
-          callback()
-        }
-      },
+      required: true,
+      message: '请输入用户名',
       trigger: 'blur'
     }
   ],
   phone: [
     {
-      validator: (rule, value, callback) => {
-        if (form.role === 'customer' && !value) {
-          callback(new Error('顾客必须输入手机号'))
-        } else {
-          callback()
-        }
-      },
+      required: false,
+      message: '请输入手机号',
       trigger: 'blur'
     }
   ],
   password: [
     {
-      validator: (rule, value, callback) => {
-        if (form.role && form.role !== 'customer' && !value) {
-          callback(new Error('员工必须输入密码'))
-        } else if (value && value.length < 6) {
-          callback(new Error('密码长度不能少于6位'))
-        } else {
-          callback()
-        }
-      },
+      required: true,
+      message: '请输入密码',
+      trigger: 'blur'
+    },
+    {
+      min: 6,
+      message: '密码长度不能少于6位',
       trigger: 'blur'
     }
   ],
@@ -199,11 +186,11 @@ const handleSubmit = async () => {
       }
       
       await createUser(data)
-      ElMessage.success('创建用户成功')
+      ElMessage.success('创建员工成功')
       router.push('/users')
     } catch (error) {
-      console.error('创建用户失败:', error)
-      ElMessage.error(error.message || '创建用户失败')
+      console.error('创建员工失败:', error)
+      ElMessage.error(error.message || '创建员工失败')
     } finally {
       submitting.value = false
     }
