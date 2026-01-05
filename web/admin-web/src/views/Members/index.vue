@@ -62,18 +62,28 @@
           </el-select>
         </el-form-item>
         
-        <el-form-item label="套餐类型">
+        <el-form-item label="服务类型">
           <el-select
-            v-model="searchForm.package_type"
-            placeholder="请选择套餐"
+            v-model="searchForm.service_type"
+            placeholder="请选择服务类型"
             clearable
             style="width: 150px"
             @change="handleSearch"
           >
-            <el-option label="基础会员" value="basic" />
-            <el-option label="高级会员" value="premium" />
-            <el-option label="VIP会员" value="vip" />
+            <el-option label="美甲" value="nail" />
+            <el-option label="美睫" value="eyelash" />
+            <el-option label="组合" value="combo" />
           </el-select>
+        </el-form-item>
+        
+        <el-form-item label="套餐名称">
+          <el-input
+            v-model="searchForm.package_name"
+            placeholder="请输入套餐名称"
+            clearable
+            @clear="handleSearch"
+            @keyup.enter="handleSearch"
+          />
         </el-form-item>
         
         <el-form-item>
@@ -103,16 +113,24 @@
         
         <el-table-column prop="phone" label="手机号" width="120" />
         
-        <el-table-column prop="store.name" label="所属门店" width="120" />
+        <el-table-column label="所属门店" width="120">
+          <template #default="{ row }">
+            {{ getStoreName(row.store_id) }}
+          </template>
+        </el-table-column>
         
         <el-table-column prop="package_name" label="套餐名称" width="120" />
         
-        <el-table-column prop="total_times" label="总次数" width="80" />
-        
-        <el-table-column prop="remaining_times" label="剩余次数" width="100">
+        <el-table-column prop="service_type" label="服务类型" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.remaining_times > 0 ? 'success' : 'danger'">
-              {{ row.remaining_times }}
+            {{ getServiceTypeText(row.service_type) }}
+          </template>
+        </el-table-column>
+        
+        <el-table-column prop="used_times" label="已使用次数" width="100">
+          <template #default="{ row }">
+            <el-tag type="info">
+              {{ row.used_times || 0 }}
             </el-tag>
           </template>
         </el-table-column>
@@ -194,7 +212,8 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { getStores } from '@/api/stores'
 import { getMembers, disableMember, enableMember } from '@/api/members'
@@ -205,12 +224,15 @@ const memberList = ref([])
 const storeList = ref([])
 const selectedMembers = ref([])
 
+const router = useRouter()
+
 const searchForm = reactive({
   name: '',
   phone: '',
   store_id: '',
   status: '',
-  package_type: ''
+  service_type: '',
+  package_name: ''
 })
 
 const pagination = reactive({
@@ -244,13 +266,35 @@ const getStatusText = (status) => {
   return textMap[status] || '未知'
 }
 
+// 获取服务类型文本
+const getServiceTypeText = (serviceType) => {
+  const typeMap = {
+    nail: '美甲',
+    eyelash: '美睫',
+    combo: '组合'
+  }
+  return typeMap[serviceType] || serviceType || '-'
+}
+
+// 获取门店名称
+const getStoreName = (storeId) => {
+  const store = storeList.value.find(s => s.id === storeId)
+  return store ? store.name : '-'
+}
+
 // 获取门店列表
 const fetchStoreList = async () => {
   try {
-    const response = await getStores()
-    storeList.value = response.data.stores || []
+    const response = await getStores({ page: 1, page_size: 1000 })
+    // 后端返回格式: { code: 0, data: { list: [], total: 0 } }
+    if (response.code === 0 && response.data) {
+      storeList.value = response.data.list || []
+    } else {
+      storeList.value = []
+    }
   } catch (error) {
     console.error('获取门店列表失败:', error)
+    storeList.value = []
   }
 }
 
@@ -261,15 +305,35 @@ const fetchMemberList = async () => {
     const params = {
       page: pagination.page,
       page_size: pagination.pageSize,
-      ...searchForm
+      name: searchForm.name || undefined,
+      phone: searchForm.phone || undefined,
+      store_id: searchForm.store_id || undefined,
+      status: searchForm.status || undefined,
+      service_type: searchForm.service_type || undefined,
+      package_name: searchForm.package_name || undefined
     }
     
+    // 移除空值
+    Object.keys(params).forEach(key => {
+      if (params[key] === undefined || params[key] === '') {
+        delete params[key]
+      }
+    })
+    
     const response = await getMembers(params)
-    memberList.value = response.data.members || []
-    pagination.total = response.data.total || 0
+    // 后端返回格式: { code: 0, data: { list: [], total: 0 } }
+    if (response.code === 0 && response.data) {
+      memberList.value = response.data.list || []
+      pagination.total = response.data.total || 0
+    } else {
+      memberList.value = []
+      pagination.total = 0
+    }
   } catch (error) {
     console.error('获取会员列表失败:', error)
     ElMessage.error('获取会员列表失败')
+    memberList.value = []
+    pagination.total = 0
   } finally {
     loading.value = false
   }
@@ -288,29 +352,30 @@ const handleReset = () => {
     phone: '',
     store_id: '',
     status: '',
-    package_type: ''
+    service_type: '',
+    package_name: ''
   })
   handleSearch()
 }
 
 // 新增会员
 const handleCreate = () => {
-  ElMessage.info('跳转到新增会员页面')
+  router.push('/members/create')
 }
 
 // 查看详情
 const handleView = (row) => {
-  ElMessage.info(`查看会员详情：${row.name}`)
+  router.push(`/members/${row.id}`)
 }
 
 // 编辑会员
 const handleEdit = (row) => {
-  ElMessage.info(`编辑会员：${row.name}`)
+  router.push(`/members/${row.id}/edit`)
 }
 
-// 消费记录
+// 消费记录（使用记录）
 const handleConsumption = (row) => {
-  ElMessage.info(`查看消费记录：${row.name}`)
+  router.push(`/members/${row.id}/usages`)
 }
 
 // 人脸管理

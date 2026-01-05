@@ -50,6 +50,30 @@ const routes = [
         meta: { title: '会员管理', icon: 'User' }
       },
       {
+        path: 'members/create',
+        name: 'MemberCreate',
+        component: () => import('@/views/Members/Form.vue'),
+        meta: { title: '新增会员', hidden: true }
+      },
+      {
+        path: 'members/:id',
+        name: 'MemberDetail',
+        component: () => import('@/views/Members/Detail.vue'),
+        meta: { title: '会员详情', hidden: true }
+      },
+      {
+        path: 'members/:id/edit',
+        name: 'MemberEdit',
+        component: () => import('@/views/Members/Form.vue'),
+        meta: { title: '编辑会员', hidden: true }
+      },
+      {
+        path: 'members/:id/usages',
+        name: 'MemberUsages',
+        component: () => import('@/views/Members/Usages.vue'),
+        meta: { title: '使用记录', hidden: true }
+      },
+      {
         path: 'staff',
         name: 'Staff',
         component: () => import('@/views/Staff/index.vue'),
