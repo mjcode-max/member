@@ -168,6 +168,585 @@
                 }
             }
         },
+        "/slot-templates": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据门店ID获取时段模板列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "获取时段模板列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "门店ID",
+                        "name": "store_id",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/member-pre_internal_domain_slot.Template"
+                            }
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建新的时段模板",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "创建时段模板",
+                "parameters": [
+                    {
+                        "description": "创建时段模板请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.CreateTemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_internal_domain_slot.Template"
+                        }
+                    }
+                }
+            }
+        },
+        "/slot-templates/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据模板ID获取时段模板详细信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "获取时段模板详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_internal_domain_slot.Template"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新时段模板信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "更新时段模板",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新时段模板请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.UpdateTemplateRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_internal_domain_slot.Template"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除时段模板",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "删除时段模板",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "模板ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/slots": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据门店ID和日期获取时段列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "获取时段列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "门店ID",
+                        "name": "store_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "日期 (YYYY-MM-DD格式)",
+                        "name": "date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/member-pre_internal_domain_slot.Slot"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/slots/available": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据门店ID和日期获取可用时段列表",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "获取可用时段列表",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "门店ID",
+                        "name": "store_id",
+                        "in": "query",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "日期 (YYYY-MM-DD格式)",
+                        "name": "date",
+                        "in": "query",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/member-pre_internal_domain_slot.Slot"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/slots/book": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "预约时段（从锁定转为已预约，原子操作）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "预约时段",
+                "parameters": [
+                    {
+                        "description": "预约时段请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.BookSlotRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/slots/generate": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据模板生成时段",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "生成时段",
+                "parameters": [
+                    {
+                        "description": "生成时段请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.GenerateSlotsRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/slots/lock": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "锁定时段（预约时调用，原子操作）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "锁定时段",
+                "parameters": [
+                    {
+                        "description": "锁定时段请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.LockSlotRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/slots/recalculate-capacity": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "重新计算时段容量（当美甲师状态变更时调用）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "重新计算时段容量",
+                "parameters": [
+                    {
+                        "description": "重新计算容量请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.RecalculateCapacityRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/slots/release": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "释放时段（取消或完成时调用，原子操作）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "释放时段",
+                "parameters": [
+                    {
+                        "description": "释放时段请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.ReleaseSlotRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/slots/unlock": {
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "解锁时段（取消预约时调用，原子操作）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "解锁时段",
+                "parameters": [
+                    {
+                        "description": "解锁时段请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.UnlockSlotRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/slots/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据时段ID获取时段详细信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "时段管理"
+                ],
+                "summary": "获取时段详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "时段ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_internal_domain_slot.Slot"
+                        }
+                    }
+                }
+            }
+        },
         "/stores": {
             "get": {
                 "security": [
@@ -774,6 +1353,22 @@
         }
     },
     "definitions": {
+        "internal_interfaces_http_handler.BookSlotRequest": {
+            "type": "object",
+            "required": [
+                "count",
+                "slot_id"
+            ],
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "slot_id": {
+                    "type": "integer"
+                }
+            }
+        },
         "internal_interfaces_http_handler.CreateStoreRequest": {
             "type": "object",
             "required": [
@@ -811,6 +1406,31 @@
                 "status": {
                     "description": "状态: operating, closed, shutdown",
                     "type": "string"
+                }
+            }
+        },
+        "internal_interfaces_http_handler.CreateTemplateRequest": {
+            "type": "object",
+            "required": [
+                "name",
+                "store_id",
+                "weekday_rules"
+            ],
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "store_id": {
+                    "type": "integer"
+                },
+                "weekday_rules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/member-pre_internal_domain_slot.WeekdayRule"
+                    }
                 }
             }
         },
@@ -853,6 +1473,98 @@
                 "username": {
                     "description": "用户名（员工必填，顾客可选）",
                     "type": "string"
+                }
+            }
+        },
+        "internal_interfaces_http_handler.GenerateSlotsRequest": {
+            "type": "object",
+            "required": [
+                "end_date",
+                "start_date",
+                "store_id",
+                "technician_count"
+            ],
+            "properties": {
+                "end_date": {
+                    "type": "string"
+                },
+                "start_date": {
+                    "type": "string"
+                },
+                "store_id": {
+                    "type": "integer"
+                },
+                "technician_count": {
+                    "type": "integer",
+                    "minimum": 1
+                }
+            }
+        },
+        "internal_interfaces_http_handler.LockSlotRequest": {
+            "type": "object",
+            "required": [
+                "count",
+                "slot_id"
+            ],
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "slot_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_interfaces_http_handler.RecalculateCapacityRequest": {
+            "type": "object",
+            "required": [
+                "from_date",
+                "store_id",
+                "technician_count"
+            ],
+            "properties": {
+                "from_date": {
+                    "type": "string"
+                },
+                "store_id": {
+                    "type": "integer"
+                },
+                "technician_count": {
+                    "type": "integer",
+                    "minimum": 0
+                }
+            }
+        },
+        "internal_interfaces_http_handler.ReleaseSlotRequest": {
+            "type": "object",
+            "required": [
+                "count",
+                "slot_id"
+            ],
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "slot_id": {
+                    "type": "integer"
+                }
+            }
+        },
+        "internal_interfaces_http_handler.UnlockSlotRequest": {
+            "type": "object",
+            "required": [
+                "count",
+                "slot_id"
+            ],
+            "properties": {
+                "count": {
+                    "type": "integer",
+                    "minimum": 1
+                },
+                "slot_id": {
+                    "type": "integer"
                 }
             }
         },
@@ -907,6 +1619,23 @@
                         "closed",
                         "shutdown"
                     ]
+                }
+            }
+        },
+        "internal_interfaces_http_handler.UpdateTemplateRequest": {
+            "type": "object",
+            "properties": {
+                "name": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "weekday_rules": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/member-pre_internal_domain_slot.WeekdayRule"
+                    }
                 }
             }
         },
@@ -1015,6 +1744,122 @@
                 },
                 "user": {
                     "$ref": "#/definitions/member-pre_internal_domain_user.User"
+                }
+            }
+        },
+        "member-pre_internal_domain_slot.Slot": {
+            "type": "object",
+            "properties": {
+                "booked_count": {
+                    "description": "已预约数量",
+                    "type": "integer"
+                },
+                "capacity": {
+                    "description": "可用容量（在岗美甲师数量）",
+                    "type": "integer"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "date": {
+                    "description": "日期",
+                    "type": "string"
+                },
+                "end_time": {
+                    "description": "结束时间",
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "locked_count": {
+                    "description": "已锁定数量",
+                    "type": "integer"
+                },
+                "start_time": {
+                    "description": "开始时间",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态: available, locked, booked, completed, cancelled",
+                    "type": "string"
+                },
+                "store_id": {
+                    "description": "门店ID",
+                    "type": "integer"
+                },
+                "technician_id": {
+                    "description": "美甲师ID（可选，如果为空表示任意美甲师）",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "member-pre_internal_domain_slot.Template": {
+            "type": "object",
+            "properties": {
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "模板名称",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态: active, inactive",
+                    "type": "string"
+                },
+                "store_id": {
+                    "description": "门店ID",
+                    "type": "integer"
+                },
+                "updated_at": {
+                    "type": "string"
+                },
+                "weekday_rules": {
+                    "description": "星期规则列表",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/member-pre_internal_domain_slot.WeekdayRule"
+                    }
+                }
+            }
+        },
+        "member-pre_internal_domain_slot.TimeSlotRule": {
+            "type": "object",
+            "properties": {
+                "duration": {
+                    "description": "时段时长（分钟）",
+                    "type": "integer"
+                },
+                "end_time": {
+                    "description": "结束时间 (HH:MM格式)",
+                    "type": "string"
+                },
+                "start_time": {
+                    "description": "开始时间 (HH:MM格式)",
+                    "type": "string"
+                }
+            }
+        },
+        "member-pre_internal_domain_slot.WeekdayRule": {
+            "type": "object",
+            "properties": {
+                "slots": {
+                    "description": "该天的时段列表",
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/member-pre_internal_domain_slot.TimeSlotRule"
+                    }
+                },
+                "weekday": {
+                    "description": "星期几 (0=周日, 1=周一, ..., 6=周六)",
+                    "type": "integer"
                 }
             }
         },
