@@ -111,7 +111,7 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 		{
 			// 获取门店列表（所有已认证用户）
 			// 后台可以查看所有门店，店长、美甲师、顾客可以查看门店列表
-			storesProtected.GET("", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.storeHandler.GetStoreList)
+			storesProtected.GET("", httpInfra.RoleMiddleware(user.RoleAdmin), r.storeHandler.GetStoreList)
 
 			// 获取门店详情（所有已认证用户）
 			// 后台可以查看所有门店，店长只能查看自己的门店，美甲师和顾客可以查看门店详情
@@ -135,11 +135,11 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 
 // NewAppRouteRegistrar 创建应用路由注册器
 func NewAppRouteRegistrar(
-	authHandler  *handler.AuthHandler,
-	userHandler  *handler.UserHandler,
+	authHandler *handler.AuthHandler,
+	userHandler *handler.UserHandler,
 	storeHandler *handler.StoreHandler,
-	authService  *auth.AuthService,
-	log          logger.Logger,
+	authService *auth.AuthService,
+	log logger.Logger,
 ) httpInfra.RouteRegistrar {
 	return &appRouteRegistrar{
 		authHandler:  authHandler,
