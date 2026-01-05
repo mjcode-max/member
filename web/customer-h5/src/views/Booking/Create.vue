@@ -198,22 +198,60 @@
       </div>
     </div>
 
-    <!-- 弹窗组件 -->
+    <!-- 门店选择弹窗 -->
     <van-popup 
       v-model:show="showStorePicker" 
-      position="bottom" 
+      position="bottom"
       round
-      :style="{ height: '60%' }"
+      :style="{ height: '70%' }"
     >
       <div class="popup-header">
         <div class="popup-title">选择门店</div>
         <div class="popup-close" @click="showStorePicker = false">×</div>
       </div>
-      <van-picker
-        :columns="storeOptions"
-        @confirm="onStoreConfirm"
-        @cancel="showStorePicker = false"
-      />
+      <div class="store-list-container">
+        <!-- 加载状态 -->
+        <div v-if="loadingStores" class="loading-container">
+          <van-loading type="spinner" size="24px" />
+          <span class="loading-text">正在加载门店列表...</span>
+        </div>
+        <!-- 门店列表 -->
+        <div v-else class="store-list">
+          <div 
+            v-for="store in storeList" 
+            :key="store.id"
+            class="store-item"
+            :class="{ 
+              selected: selectedStore?.id === store.id,
+              disabled: store.status === 'shutdown'
+            }"
+            @click="selectStore(store)"
+          >
+            <div class="store-info">
+              <div class="store-name-row">
+                <span class="store-name">{{ store.name }}</span>
+                <span class="store-status" :class="getStatusClass(store.status)">
+                  {{ getStatusText(store.status) }}
+                </span>
+              </div>
+              <div class="store-address" v-if="store.address">
+                📍 {{ store.address }}
+              </div>
+              <div class="store-contact" v-if="store.phone">
+                📞 {{ store.phone }}
+              </div>
+            </div>
+            <div class="store-check" v-if="selectedStore?.id === store.id">
+              ✓
+            </div>
+          </div>
+          <!-- 空状态 -->
+          <div v-if="!loadingStores && storeList.length === 0" class="empty-state">
+            <div class="empty-icon">🏪</div>
+            <div class="empty-text">暂无门店</div>
+          </div>
+        </div>
+      </div>
     </van-popup>
     
     <van-calendar
@@ -275,6 +313,7 @@ const router = useRouter()
 const route = useRoute()
 
 const loading = ref(false)
+const loadingStores = ref(false)
 const loadingTimeSlots = ref(false)
 const timeSlotsError = ref('')
 const showStorePicker = ref(false)
@@ -302,12 +341,24 @@ const phoneRules = [
   { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }
 ]
 
-const storeOptions = computed(() => {
-  return storeList.value.map(store => ({
-    text: store.name,
-    value: store.id
-  }))
-})
+// 获取门店状态文本
+const getStatusText = (status) => {
+  const statusMap = {
+    operating: '营业中',
+    closed: '停业',
+    shutdown: '已关闭'
+  }
+  return statusMap[status] || status
+}
+
+// 获取门店状态样式类
+const getStatusClass = (status) => {
+  return {
+    'status-operating': status === 'operating',
+    'status-closed': status === 'closed',
+    'status-shutdown': status === 'shutdown'
+  }
+}
 
 const timeSlotOptions = computed(() => {
   return availableSlots.value.map(slot => ({
@@ -323,9 +374,25 @@ const canSubmit = computed(() => {
 
 // 获取门店列表
 const fetchStores = async () => {
+  loadingStores.value = true
   try {
-    const response = await getStores()
-    storeList.value = response.data.stores || []
+    // 获取所有门店（包括营业中、停业、关闭）
+    // 传递 status: 'all' 获取所有门店，不传则默认只返回营业中的门店
+    const response = await getStores({
+      status: 'operating', // 获取所有门店
+      page: 1,
+      page_size: 100 // 获取足够多的门店
+    })
+    
+    // 后端返回格式：{ code: 0, data: { list: [...], pagination: {...} } }
+    if (response.data?.list) {
+      storeList.value = response.data.list
+    } else if (Array.isArray(response.data)) {
+      // 兼容其他可能的返回格式
+      storeList.value = response.data
+    } else {
+      storeList.value = []
+    }
     
     // 如果URL中有storeId参数，自动选择该门店
     const storeId = route.query.storeId
@@ -338,6 +405,9 @@ const fetchStores = async () => {
     }
   } catch (error) {
     console.error('获取门店列表失败:', error)
+    showToast.fail('获取门店列表失败，请重试')
+  } finally {
+    loadingStores.value = false
   }
 }
 
@@ -387,9 +457,14 @@ const selectTimeSlot = (slot) => {
   form.time_slot = slot.time_slot
 }
 
-// 门店确认
-const onStoreConfirm = ({ selectedOptions }) => {
-  const store = storeList.value.find(s => s.id === selectedOptions[0].value)
+// 选择门店
+const selectStore = (store) => {
+  // 已关闭的门店不能选择
+  if (store.status === 'shutdown') {
+    showToast('该门店已关闭，无法预约')
+    return
+  }
+  
   selectedStore.value = store
   form.store_id = store.id
   showStorePicker.value = false
@@ -1052,5 +1127,126 @@ onMounted(() => {
   font-size: 12px;
   color: #8c8c8c;
   text-align: center;
+}
+
+// 门店列表容器
+.store-list-container {
+  height: calc(100% - 60px);
+  overflow-y: auto;
+  padding: 0 16px 16px;
+}
+
+.store-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.store-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  background: #fff;
+  border-radius: 12px;
+  border: 2px solid #f0f0f0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover:not(.disabled) {
+    border-color: #667eea;
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    transform: translateY(-2px);
+  }
+  
+  &.selected {
+    border-color: #667eea;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  }
+  
+  &.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #f5f5f5;
+  }
+}
+
+.store-info {
+  flex: 1;
+}
+
+.store-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.store-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.store-status {
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+  
+  &.status-operating {
+    background: #e6f7ff;
+    color: #1890ff;
+  }
+  
+  &.status-closed {
+    background: #fff7e6;
+    color: #fa8c16;
+  }
+  
+  &.status-shutdown {
+    background: #f5f5f5;
+    color: #8c8c8c;
+  }
+}
+
+.store-address {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.store-contact {
+  font-size: 13px;
+  color: #666;
+}
+
+.store-check {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  font-weight: bold;
+  margin-left: 12px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
 }
 </style>

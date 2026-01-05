@@ -4,16 +4,16 @@
     <div class="page-header">
       <div class="header-content">
         <div class="store-info">
-          <h1 class="store-name">{{ storeInfo.name }}</h1>
-          <p class="store-address">{{ storeInfo.address }}</p>
-          <div class="manager-info">
+          <h1 class="store-name">{{ storeInfo.name || '加载中...' }}</h1>
+          <p class="store-address" v-if="storeInfo.address">{{ storeInfo.address }}</p>
+          <div class="manager-info" v-if="userInfo.username">
             <i class="manager-icon">👨‍💼</i>
-            <span>店长：{{ userInfo.name }}</span>
+            <span>店长：{{ userInfo.username }}</span>
           </div>
         </div>
         <div class="header-actions">
-          <div class="status-indicator" :class="storeInfo.status">
-            {{ storeInfo.status === 'active' ? '营业中' : '已停业' }}
+          <div class="status-indicator" :class="getStatusClass(storeInfo.status)">
+            {{ getStatusText(storeInfo.status) }}
           </div>
         </div>
       </div>
@@ -177,23 +177,30 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getStoreDashboard } from '@/api/dashboard'
+import { getStoreById } from '@/api/stores'
 import dayjs from 'dayjs'
 
 const router = useRouter()
 const userStore = useUserStore()
 
-const userInfo = reactive({
-  name: '王店长'
-})
+// 从store获取用户信息
+const userInfo = computed(() => userStore.userInfo || {})
 
+// 店铺信息
 const storeInfo = reactive({
-  name: '王府井旗舰店',
-  address: '东城区王府井大街138号',
-  status: 'active'
+  id: null,
+  name: '',
+  address: '',
+  phone: '',
+  contact_person: '',
+  status: '',
+  business_hours_start: '',
+  business_hours_end: '',
+  deposit_amount: 0
 })
 
 const todayData = reactive({
@@ -239,9 +246,51 @@ const recentMembers = ref([
   }
 ])
 
+// 获取门店状态文本
+const getStatusText = (status) => {
+  const statusMap = {
+    operating: '营业中',
+    closed: '停业',
+    shutdown: '已关闭'
+  }
+  return statusMap[status] || '未知'
+}
+
+// 获取门店状态样式类
+const getStatusClass = (status) => {
+  return {
+    'status-operating': status === 'operating',
+    'status-closed': status === 'closed',
+    'status-shutdown': status === 'shutdown'
+  }
+}
+
 // 格式化日期
 const formatDate = (date) => {
   return dayjs(date).format('MM-DD')
+}
+
+// 获取店铺详情（仅用于首页头部显示）
+const fetchStoreInfo = async () => {
+  // 从用户信息中获取store_id
+  const storeId = userInfo.value.store_id
+  
+  if (!storeId) {
+    console.error('用户未关联门店')
+    return
+  }
+  
+  try {
+    const response = await getStoreById(storeId)
+    if (response.data) {
+      // 只更新首页头部需要的基本信息
+      storeInfo.name = response.data.name || ''
+      storeInfo.address = response.data.address || ''
+      storeInfo.status = response.data.status || ''
+    }
+  } catch (error) {
+    console.error('获取店铺详情失败:', error)
+  }
 }
 
 // 获取仪表板数据
@@ -257,6 +306,9 @@ const fetchDashboardData = async () => {
 }
 
 onMounted(() => {
+  // 先获取店铺信息
+  fetchStoreInfo()
+  // 再获取仪表板数据
   fetchDashboardData()
 })
 </script>
@@ -317,12 +369,17 @@ onMounted(() => {
   font-size: 14px;
   font-weight: 600;
   
-  &.active {
+  &.status-operating {
     background: rgba(82, 196, 26, 0.2);
     color: #73d13d;
   }
   
-  &.inactive {
+  &.status-closed {
+    background: rgba(250, 173, 20, 0.2);
+    color: #ffc53d;
+  }
+  
+  &.status-shutdown {
     background: rgba(255, 77, 79, 0.2);
     color: #ff7875;
   }

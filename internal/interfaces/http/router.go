@@ -94,9 +94,17 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 		}
 	}
 
+	// ==================== 公开接口（无需认证） ====================
+	publicGroup := api.Group("/public")
+	{
+		// 获取公开门店列表（供客户使用，默认只返回营业中的门店）
+		publicGroup.GET("/stores", r.storeHandler.GetPublicStoreList)
+	}
+
 	// ==================== 门店管理相关路由 ====================
 	storesGroup := api.Group("/stores")
 	{
+
 		// 需要认证的路由组
 		storesProtected := storesGroup.Group("")
 		storesProtected.Use(httpInfra.AuthMiddleware(r.authService, r.logger))

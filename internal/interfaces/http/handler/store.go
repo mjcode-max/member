@@ -113,6 +113,70 @@ func (h *StoreHandler) GetStore(c *gin.Context) {
 	utils.Success(c, s)
 }
 
+// GetPublicStoreList 获取公开门店列表（无需认证，供客户使用）
+// @Summary 获取公开门店列表
+// @Description 获取门店列表（公开接口，无需认证），支持按状态、名称筛选和分页。默认只返回营业中的门店。
+// @Tags 门店管理
+// @Accept json
+// @Produce json
+// @Param status query string false "状态筛选" Enums(operating, closed, shutdown) default(operating)
+// @Param name query string false "门店名称（模糊搜索）"
+// @Param page query int false "页码" default(1)
+// @Param page_size query int false "每页数量" default(10)
+// @Success 200 {object} utils.PaginationResponse
+// @Router /public/stores [get]
+func (h *StoreHandler) GetPublicStoreList(c *gin.Context) {
+	startTime := time.Now()
+	requestID := getRequestID(c)
+
+	// 获取查询参数
+	// 如果不传status参数，默认只返回营业中的门店
+	// 如果传status="all"，则返回所有门店（包括营业中、停业、关闭）
+	status := c.Query("status")
+	if status == "" {
+		status = "operating" // 默认只返回营业中的门店
+	} else if status == "all" {
+		status = "" // 空字符串表示不筛选状态，返回所有门店
+	}
+	name := c.Query("name")
+	pageStr := c.DefaultQuery("page", "1")
+	pageSizeStr := c.DefaultQuery("page_size", "10")
+
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	pageSize, err := strconv.Atoi(pageSizeStr)
+	if err != nil || pageSize < 1 {
+		pageSize = 10
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
+	ctx := c.Request.Context()
+	stores, total, err := h.service.GetList(ctx, status, name, page, pageSize)
+	if err != nil {
+		h.logger.Error("获取门店列表失败",
+			logger.NewField("request_id", requestID),
+			logger.NewField("error", err.Error()),
+			logger.NewField("duration_ms", time.Since(startTime).Milliseconds()),
+		)
+		utils.Error(c, err)
+		return
+	}
+
+	h.logger.Info("获取公开门店列表成功",
+		logger.NewField("request_id", requestID),
+		logger.NewField("count", len(stores)),
+		logger.NewField("total", total),
+		logger.NewField("duration_ms", time.Since(startTime).Milliseconds()),
+	)
+
+	utils.SuccessWithPagination(c, stores, page, pageSize, total)
+}
+
 // GetStoreList 获取门店列表
 // @Summary 获取门店列表
 // @Description 获取门店列表，支持按状态、名称筛选和分页
