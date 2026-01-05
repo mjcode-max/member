@@ -8,5 +8,6 @@ import (
 var WireHttpSet = wire.NewSet(
 	handler.NewAuthHandler,
 	handler.NewUserHandler,
+	handler.NewStoreHandler,
 	NewAppRouteRegistrar,
 )

@@ -12,10 +12,11 @@ import (
 // appRouteRegistrar 应用路由注册器
 // 所有HTTP路由必须在此注册器中定义
 type appRouteRegistrar struct {
-	authHandler *handler.AuthHandler
-	userHandler *handler.UserHandler
-	authService *auth.AuthService
-	logger      logger.Logger
+	authHandler  *handler.AuthHandler
+	userHandler  *handler.UserHandler
+	storeHandler *handler.StoreHandler
+	authService  *auth.AuthService
+	logger       logger.Logger
 }
 
 // RegisterRoutes 注册所有应用路由
@@ -92,19 +93,51 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 			usersProtected.PUT("/:id/work-status", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.userHandler.UpdateWorkStatus)
 		}
 	}
+
+	// ==================== 门店管理相关路由 ====================
+	storesGroup := api.Group("/stores")
+	{
+		// 需要认证的路由组
+		storesProtected := storesGroup.Group("")
+		storesProtected.Use(httpInfra.AuthMiddleware(r.authService, r.logger))
+		{
+			// 获取门店列表（所有已认证用户）
+			// 后台可以查看所有门店，店长、美甲师、顾客可以查看门店列表
+			storesProtected.GET("", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.storeHandler.GetStoreList)
+
+			// 获取门店详情（所有已认证用户）
+			// 后台可以查看所有门店，店长只能查看自己的门店，美甲师和顾客可以查看门店详情
+			storesProtected.GET("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.storeHandler.GetStore)
+
+			// 创建门店（仅后台）
+			storesProtected.POST("", httpInfra.RoleMiddleware(user.RoleAdmin), r.storeHandler.CreateStore)
+
+			// 更新门店（后台、店长）
+			// 后台可以更新所有门店，店长只能更新自己的门店
+			storesProtected.PUT("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.storeHandler.UpdateStore)
+
+			// 删除门店（仅后台）
+			storesProtected.DELETE("/:id", httpInfra.RoleMiddleware(user.RoleAdmin), r.storeHandler.DeleteStore)
+
+			// 更新门店状态（仅后台）
+			storesProtected.PUT("/:id/status", httpInfra.RoleMiddleware(user.RoleAdmin), r.storeHandler.UpdateStoreStatus)
+		}
+	}
 }
 
 // NewAppRouteRegistrar 创建应用路由注册器
 func NewAppRouteRegistrar(
-	authHandler *handler.AuthHandler,
-	userHandler *handler.UserHandler,
-	authService *auth.AuthService,
-	log logger.Logger,
+	authHandler  *handler.AuthHandler,
+	userHandler  *handler.UserHandler,
+	storeHandler *handler.StoreHandler,
+	authService  *auth.AuthService,
+	log          logger.Logger,
 ) httpInfra.RouteRegistrar {
 	return &appRouteRegistrar{
-		authHandler: authHandler,
-		userHandler: userHandler,
-		authService: authService,
-		logger:      log,
+		authHandler:  authHandler,
+		userHandler:  userHandler,
+		storeHandler: storeHandler,
+		authService:  authService,
+		logger:       log,
 	}
 }

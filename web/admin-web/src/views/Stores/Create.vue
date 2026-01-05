@@ -50,36 +50,60 @@
         
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="纬度" prop="latitude">
-              <el-input-number
-                v-model="form.latitude"
-                :precision="6"
-                :step="0.000001"
-                placeholder="请输入纬度"
-                style="width: 100%"
+            <el-form-item label="联系人" prop="contact_person">
+              <el-input
+                v-model="form.contact_person"
+                placeholder="请输入联系人"
+                maxlength="50"
               />
             </el-form-item>
           </el-col>
           
           <el-col :span="12">
-            <el-form-item label="经度" prop="longitude">
+            <el-form-item label="押金金额" prop="deposit_amount">
               <el-input-number
-                v-model="form.longitude"
-                :precision="6"
-                :step="0.000001"
-                placeholder="请输入经度"
+                v-model="form.deposit_amount"
+                :precision="2"
+                :min="0"
+                placeholder="请输入押金金额"
                 style="width: 100%"
               />
             </el-form-item>
           </el-col>
         </el-row>
         
-        <el-form-item label="营业时间" prop="business_hours">
-          <el-input
-            v-model="form.business_hours"
-            placeholder="请输入营业时间，如：09:00-21:00"
-            maxlength="20"
-          />
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="营业开始时间" prop="business_hours_start">
+              <el-time-picker
+                v-model="form.business_hours_start"
+                format="HH:mm"
+                value-format="HH:mm"
+                placeholder="选择开始时间"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+          
+          <el-col :span="12">
+            <el-form-item label="营业结束时间" prop="business_hours_end">
+              <el-time-picker
+                v-model="form.business_hours_end"
+                format="HH:mm"
+                value-format="HH:mm"
+                placeholder="选择结束时间"
+                style="width: 100%"
+              />
+            </el-form-item>
+          </el-col>
+        </el-row>
+        
+        <el-form-item label="状态" prop="status">
+          <el-radio-group v-model="form.status">
+            <el-radio value="operating">营业中</el-radio>
+            <el-radio value="closed">停业</el-radio>
+            <el-radio value="shutdown">关闭</el-radio>
+          </el-radio-group>
         </el-form-item>
         
         <el-form-item>
@@ -108,9 +132,11 @@ const form = reactive({
   name: '',
   address: '',
   phone: '',
-  latitude: null,
-  longitude: null,
-  business_hours: '09:00-21:00'
+  contact_person: '',
+  business_hours_start: '09:00',
+  business_hours_end: '21:00',
+  status: 'operating',
+  deposit_amount: 0
 })
 
 const rules = {
@@ -123,18 +149,13 @@ const rules = {
     { min: 5, max: 200, message: '门店地址长度在5到200个字符', trigger: 'blur' }
   ],
   phone: [
-    { required: true, message: '请输入联系电话', trigger: 'blur' },
-    { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号码', trigger: 'blur' }
+    { required: true, message: '请输入联系电话', trigger: 'blur' }
   ],
-  latitude: [
-    { required: true, message: '请输入纬度', trigger: 'blur' }
+  business_hours_start: [
+    { required: true, message: '请选择营业开始时间', trigger: 'change' }
   ],
-  longitude: [
-    { required: true, message: '请输入经度', trigger: 'blur' }
-  ],
-  business_hours: [
-    { required: true, message: '请输入营业时间', trigger: 'blur' },
-    { pattern: /^\d{2}:\d{2}-\d{2}:\d{2}$/, message: '请输入正确的营业时间格式，如：09:00-21:00', trigger: 'blur' }
+  business_hours_end: [
+    { required: true, message: '请选择营业结束时间', trigger: 'change' }
   ]
 }
 

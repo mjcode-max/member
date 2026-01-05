@@ -101,6 +101,7 @@ const handleLogin = async () => {
     loading.value = true
     
     const success = await userStore.loginAction(loginForm)
+    debugger
     if (success) {
       router.push('/')
     }
