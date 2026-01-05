@@ -2,6 +2,7 @@ package handler
 
 import (
 	"member-pre/internal/domain/auth"
+	"member-pre/internal/domain/user"
 	"net/http"
 	"strconv"
 	"time"
@@ -64,6 +65,21 @@ func (h *AuthHandler) Login(c *gin.Context) {
 		)
 		utils.Error(c, err)
 		return
+	}
+
+	// 检查是否是后台登录请求（通过请求头判断）
+	clientType := c.GetHeader("X-Client-Type")
+	if clientType == "admin-web" {
+		// 后台登录只允许管理员角色
+		if resp.User.Role != user.RoleAdmin {
+			h.logger.Warn("非管理员尝试登录后台",
+				logger.NewField("request_id", requestID),
+				logger.NewField("user_id", resp.User.ID),
+				logger.NewField("role", resp.User.Role),
+			)
+			utils.ErrorWithCode(c, http.StatusForbidden, "只有管理员可以登录后台系统")
+			return
+		}
 	}
 
 	h.logger.Info("登录成功",

@@ -90,6 +90,12 @@ const routes = [
         name: 'System',
         component: () => import('@/views/System/index.vue'),
         meta: { title: '系统设置', icon: 'Setting' }
+      },
+      {
+        path: 'profile',
+        name: 'Profile',
+        component: () => import('@/views/Profile.vue'),
+        meta: { title: '个人资料', icon: 'User', hidden: true }
       }
     ]
   },
