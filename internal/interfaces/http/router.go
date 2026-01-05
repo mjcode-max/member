@@ -12,11 +12,13 @@ import (
 // appRouteRegistrar 应用路由注册器
 // 所有HTTP路由必须在此注册器中定义
 type appRouteRegistrar struct {
-	authHandler  *handler.AuthHandler
-	userHandler  *handler.UserHandler
-	storeHandler *handler.StoreHandler
-	authService  *auth.AuthService
-	logger       logger.Logger
+	authHandler        *handler.AuthHandler
+	userHandler        *handler.UserHandler
+	storeHandler       *handler.StoreHandler
+	templateHandler    *handler.SlotTemplateHandler
+	slotHandler        *handler.SlotHandler
+	authService        *auth.AuthService
+	logger             logger.Logger
 }
 
 // RegisterRoutes 注册所有应用路由
@@ -131,6 +133,66 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 			storesProtected.PUT("/:id/status", httpInfra.RoleMiddleware(user.RoleAdmin), r.storeHandler.UpdateStoreStatus)
 		}
 	}
+
+	// ==================== 时段模板管理相关路由 ====================
+	templateGroup := api.Group("/slot-templates")
+	{
+		// 需要认证的路由组
+		templateProtected := templateGroup.Group("")
+		templateProtected.Use(httpInfra.AuthMiddleware(r.authService, r.logger))
+		{
+			// 获取时段模板列表（后台、店长）
+			templateProtected.GET("", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.templateHandler.GetTemplateList)
+
+			// 获取时段模板详情（后台、店长）
+			templateProtected.GET("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.templateHandler.GetTemplate)
+
+			// 创建时段模板（后台、店长）
+			templateProtected.POST("", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.templateHandler.CreateTemplate)
+
+			// 更新时段模板（后台、店长）
+			templateProtected.PUT("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.templateHandler.UpdateTemplate)
+
+			// 删除时段模板（后台、店长）
+			templateProtected.DELETE("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.templateHandler.DeleteTemplate)
+		}
+	}
+
+	// ==================== 时段管理相关路由 ====================
+	slotsGroup := api.Group("/slots")
+	{
+		// 需要认证的路由组
+		slotsProtected := slotsGroup.Group("")
+		slotsProtected.Use(httpInfra.AuthMiddleware(r.authService, r.logger))
+		{
+			// 获取时段列表（所有已认证用户）
+			slotsProtected.GET("", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.slotHandler.GetSlotList)
+
+			// 获取可用时段列表（所有已认证用户）
+			slotsProtected.GET("/available", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.slotHandler.GetAvailableSlotList)
+
+			// 获取时段详情（所有已认证用户）
+			slotsProtected.GET("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.slotHandler.GetSlot)
+
+			// 生成时段（后台、店长）
+			slotsProtected.POST("/generate", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.slotHandler.GenerateSlots)
+
+			// 锁定时段（所有已认证用户，预约时调用）
+			slotsProtected.POST("/lock", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.slotHandler.LockSlot)
+
+			// 解锁时段（所有已认证用户，取消预约时调用）
+			slotsProtected.POST("/unlock", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.slotHandler.UnlockSlot)
+
+			// 预约时段（所有已认证用户）
+			slotsProtected.POST("/book", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.slotHandler.BookSlot)
+
+			// 释放时段（所有已认证用户，取消或完成时调用）
+			slotsProtected.POST("/release", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.slotHandler.ReleaseSlot)
+
+			// 重新计算时段容量（后台、店长）
+			slotsProtected.POST("/recalculate-capacity", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.slotHandler.RecalculateCapacity)
+		}
+	}
 }
 
 // NewAppRouteRegistrar 创建应用路由注册器
@@ -138,14 +200,18 @@ func NewAppRouteRegistrar(
 	authHandler *handler.AuthHandler,
 	userHandler *handler.UserHandler,
 	storeHandler *handler.StoreHandler,
+	templateHandler *handler.SlotTemplateHandler,
+	slotHandler *handler.SlotHandler,
 	authService *auth.AuthService,
 	log logger.Logger,
 ) httpInfra.RouteRegistrar {
 	return &appRouteRegistrar{
-		authHandler:  authHandler,
-		userHandler:  userHandler,
-		storeHandler: storeHandler,
-		authService:  authService,
-		logger:       log,
+		authHandler:     authHandler,
+		userHandler:     userHandler,
+		storeHandler:   storeHandler,
+		templateHandler: templateHandler,
+		slotHandler:    slotHandler,
+		authService:    authService,
+		logger:         log,
 	}
 }

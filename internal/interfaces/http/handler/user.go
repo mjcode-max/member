@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"member-pre/internal/domain/slot"
 	"member-pre/internal/domain/user"
 	"member-pre/pkg/logger"
 	"member-pre/pkg/utils"
@@ -13,15 +14,17 @@ import (
 
 // UserHandler 用户处理器
 type UserHandler struct {
-	service *user.UserService
-	logger  logger.Logger
+	service     *user.UserService
+	slotService *slot.SlotService
+	logger      logger.Logger
 }
 
 // NewUserHandler 创建用户处理器
-func NewUserHandler(service *user.UserService, log logger.Logger) *UserHandler {
+func NewUserHandler(service *user.UserService, slotService *slot.SlotService, log logger.Logger) *UserHandler {
 	return &UserHandler{
-		service: service,
-		logger:  log,
+		service:     service,
+		slotService: slotService,
+		logger:      log,
 	}
 }
 
@@ -264,6 +267,24 @@ func (h *UserHandler) UpdateWorkStatus(c *gin.Context) {
 	}
 
 	// 更新工作状态
+	// 获取目标用户信息（用于检查是否为美甲师）
+	targetUser, err := h.service.GetByID(ctx, uint(targetID))
+	if err != nil {
+		utils.Error(c, err)
+		return
+	}
+	if targetUser == nil {
+		utils.ErrorWithCode(c, http.StatusNotFound, "用户不存在")
+		return
+	}
+
+	// 获取旧的工作状态
+	oldWorkStatus := ""
+	if targetUser.WorkStatus != nil {
+		oldWorkStatus = *targetUser.WorkStatus
+	}
+
+	// 更新工作状态
 	if err := h.service.UpdateWorkStatus(ctx, uint(targetID), req.WorkStatus); err != nil {
 		h.logger.Error("更新工作状态失败",
 			logger.NewField("request_id", requestID),
@@ -274,6 +295,61 @@ func (h *UserHandler) UpdateWorkStatus(c *gin.Context) {
 		)
 		utils.Error(c, err)
 		return
+	}
+
+	// 如果美甲师状态变更为休息，自动释放其占用的所有未来时段资源
+	if targetUser.Role == user.RoleTechnician && req.WorkStatus == user.WorkStatusRest && oldWorkStatus != user.WorkStatusRest {
+		h.logger.Info("美甲师状态变更为休息，开始释放未来时段资源",
+			logger.NewField("request_id", requestID),
+			logger.NewField("user_id", targetID),
+		)
+
+		// 释放美甲师的所有未来时段
+		fromDate := time.Now()
+		if err := h.slotService.ReleaseTechnicianSlots(ctx, uint(targetID), fromDate); err != nil {
+			h.logger.Warn("释放美甲师未来时段失败",
+				logger.NewField("request_id", requestID),
+				logger.NewField("user_id", targetID),
+				logger.NewField("error", err.Error()),
+			)
+			// 不返回错误，因为工作状态已经更新成功，时段释放失败可以后续重试
+		} else {
+			h.logger.Info("释放美甲师未来时段成功",
+				logger.NewField("request_id", requestID),
+				logger.NewField("user_id", targetID),
+			)
+		}
+
+		// 如果美甲师有关联门店，重新计算该门店的时段容量
+		if targetUser.StoreID != nil {
+			// 获取门店在岗美甲师数量
+			technicians, err := h.service.GetByStoreID(ctx, *targetUser.StoreID, user.RoleTechnician)
+			if err == nil {
+				// 统计在岗美甲师数量
+				workingCount := 0
+				for _, tech := range technicians {
+					if tech.WorkStatus != nil && *tech.WorkStatus == user.WorkStatusWorking {
+						workingCount++
+					}
+				}
+
+				// 重新计算时段容量
+				if err := h.slotService.RecalculateCapacity(ctx, *targetUser.StoreID, fromDate, workingCount); err != nil {
+					h.logger.Warn("重新计算时段容量失败",
+						logger.NewField("request_id", requestID),
+						logger.NewField("store_id", *targetUser.StoreID),
+						logger.NewField("error", err.Error()),
+					)
+					// 不返回错误，因为工作状态已经更新成功
+				} else {
+					h.logger.Info("重新计算时段容量成功",
+						logger.NewField("request_id", requestID),
+						logger.NewField("store_id", *targetUser.StoreID),
+						logger.NewField("technician_count", workingCount),
+					)
+				}
+			}
+		}
 	}
 
 	h.logger.Info("更新工作状态成功",
