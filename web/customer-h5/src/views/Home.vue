@@ -118,8 +118,8 @@
           <div class="store-info">
             <div class="store-header">
               <h4 class="store-name">{{ store.name }}</h4>
-              <div class="store-status" :class="{ active: store.status === 'active' }">
-                {{ store.status === 'active' ? '营业中' : '已停业' }}
+              <div class="store-status" :class="getStatusClass(store.status)">
+                {{ getStatusText(store.status) }}
               </div>
             </div>
             <p class="store-address">{{ store.address }}</p>
@@ -258,6 +258,25 @@ const handleContact = () => {
 // 处理定位
 const handleLocation = () => {
   showToast('定位功能开发中...')
+}
+
+// 获取门店状态文本
+const getStatusText = (status) => {
+  const statusMap = {
+    operating: '营业中',
+    closed: '停业',
+    shutdown: '已关闭'
+  }
+  return statusMap[status] || '未知'
+}
+
+// 获取门店状态样式类
+const getStatusClass = (status) => {
+  return {
+    'status-operating': status === 'operating',
+    'status-closed': status === 'closed',
+    'status-shutdown': status === 'shutdown'
+  }
 }
 
 onMounted(() => {
@@ -569,9 +588,19 @@ onMounted(() => {
   background: #f5f5f5;
   color: #999;
   
-  &.active {
+  &.status-operating {
     background: #e8f5e8;
     color: #52c41a;
+  }
+  
+  &.status-closed {
+    background: #fff7e6;
+    color: #fa8c16;
+  }
+  
+  &.status-shutdown {
+    background: #fff1f0;
+    color: #ff4d4f;
   }
 }
 
