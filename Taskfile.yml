@@ -219,3 +219,109 @@ tasks:
         {{end}}
       - echo "清理完成"
 
+  pre-commit:
+    desc: 运行提交前检查（清理、依赖、wire、swagger、静态分析、测试）
+    deps: [clean, deps, wire, swagger, link, test]
+
+  frontend-dev:
+    desc: 启动所有前端项目（开发模式）
+    cmds:
+      - echo "启动所有前端项目..."
+      - |
+        {{if eq .OS "windows"}}
+        if not exist logs mkdir logs
+        {{else}}
+        mkdir -p logs
+        {{end}}
+      - echo "  启动 admin-web (后台管理)..."
+      - task: start-admin-web
+      - echo "  启动 customer-h5 (客户H5)..."
+      - task: start-customer-h5
+      - echo "  启动 staff-h5 (员工H5)..."
+      - task: start-staff-h5
+      - echo "  启动 store-h5 (门店H5)..."
+      - task: start-store-h5
+      - |
+        {{if eq .OS "windows"}}
+        timeout /t 2 /nobreak >nul
+        {{else}}
+        sleep 2
+        {{end}}
+      - echo ""
+      - echo "所有前端项目已启动！"
+      - echo "  后台管理: http://localhost:3000/ (默认端口，查看日志: tail -f logs/admin-web.log)"
+      - echo "  客户H5: http://localhost:3003/ (默认端口，查看日志: tail -f logs/customer-h5.log)"
+      - echo "  员工H5: http://localhost:3002/ (默认端口，查看日志: tail -f logs/staff-h5.log)"
+      - echo "  门店H5: http://localhost:3001/ (默认端口，查看日志: tail -f logs/store-h5.log)"
+      - echo ""
+      - echo "注意: 实际端口可能不同，请查看各项目的日志文件"
+      - echo "使用 'task frontend-stop' 可以停止所有前端服务"
+      - |
+        {{if eq .OS "windows"}}
+        echo "使用 'type logs\*.log' 可以查看所有日志"
+        {{else}}
+        echo "使用 'tail -f logs/*.log' 可以查看所有日志"
+        {{end}}
+
+  start-admin-web:
+    desc: 启动 admin-web 开发服务器
+    dir: web/admin-web
+    cmds:
+      - |
+        {{if eq .OS "windows"}}
+        start /B npm run dev > ..\..\logs\admin-web.log 2>&1
+        {{else}}
+        npm run dev > ../../logs/admin-web.log 2>&1 &
+        {{end}}
+
+  start-customer-h5:
+    desc: 启动 customer-h5 开发服务器
+    dir: web/customer-h5
+    cmds:
+      - |
+        {{if eq .OS "windows"}}
+        start /B npm run dev > ..\..\logs\customer-h5.log 2>&1
+        {{else}}
+        npm run dev > ../../logs/customer-h5.log 2>&1 &
+        {{end}}
+
+  start-staff-h5:
+    desc: 启动 staff-h5 开发服务器
+    dir: web/staff-h5
+    cmds:
+      - |
+        {{if eq .OS "windows"}}
+        start /B npm run dev > ..\..\logs\staff-h5.log 2>&1
+        {{else}}
+        npm run dev > ../../logs/staff-h5.log 2>&1 &
+        {{end}}
+
+  start-store-h5:
+    desc: 启动 store-h5 开发服务器
+    dir: web/store-h5
+    cmds:
+      - |
+        {{if eq .OS "windows"}}
+        start /B npm run dev > ..\..\logs\store-h5.log 2>&1
+        {{else}}
+        npm run dev > ../../logs/store-h5.log 2>&1 &
+        {{end}}
+
+  frontend-stop:
+    desc: 停止所有前端项目
+    cmds:
+      - echo "停止所有前端项目..."
+      - |
+        {{if eq .OS "windows"}}
+        powershell -Command "$processes = Get-WmiObject Win32_Process | Where-Object {$_.CommandLine -like '*admin-web*' -and $_.CommandLine -like '*vite*'}; if ($processes) { $processes | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } }"
+        powershell -Command "$processes = Get-WmiObject Win32_Process | Where-Object {$_.CommandLine -like '*customer-h5*' -and $_.CommandLine -like '*vite*'}; if ($processes) { $processes | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } }"
+        powershell -Command "$processes = Get-WmiObject Win32_Process | Where-Object {$_.CommandLine -like '*staff-h5*' -and $_.CommandLine -like '*vite*'}; if ($processes) { $processes | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } }"
+        powershell -Command "$processes = Get-WmiObject Win32_Process | Where-Object {$_.CommandLine -like '*store-h5*' -and $_.CommandLine -like '*vite*'}; if ($processes) { $processes | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue } }"
+        {{else}}
+        pkill -f "web/admin-web.*vite" || true
+        pkill -f "web/customer-h5.*vite" || true
+        pkill -f "web/staff-h5.*vite" || true
+        pkill -f "web/store-h5.*vite" || true
+        {{end}}
+      - echo "所有前端项目已停止"
+

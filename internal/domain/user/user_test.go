@@ -161,6 +161,49 @@ func (r *TestUserRepository) UpdateWorkStatus(ctx context.Context, userID uint, 
 		Update("work_status", workStatus).Error
 }
 
+// FindList 获取用户列表（支持筛选和分页）
+func (r *TestUserRepository) FindList(ctx context.Context, role, status string, storeID *uint, username, phone string, page, pageSize int) ([]*User, int64, error) {
+	var models []UserModel
+	var total int64
+
+	query := r.db.WithContext(ctx).Model(&UserModel{})
+
+	// 筛选条件
+	if role != "" {
+		query = query.Where("role = ?", role)
+	}
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if storeID != nil {
+		query = query.Where("store_id = ?", *storeID)
+	}
+	if username != "" {
+		query = query.Where("username LIKE ?", "%"+username+"%")
+	}
+	if phone != "" {
+		query = query.Where("phone LIKE ?", "%"+phone+"%")
+	}
+
+	// 获取总数
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	// 分页查询
+	offset := (page - 1) * pageSize
+	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&models).Error; err != nil {
+		return nil, 0, err
+	}
+
+	users := make([]*User, 0, len(models))
+	for _, model := range models {
+		users = append(users, model.ToEntity())
+	}
+
+	return users, total, nil
+}
+
 // FindByStoreID 根据门店ID查找用户（店长和美甲师）
 func (r *TestUserRepository) FindByStoreID(ctx context.Context, storeID uint, role string) ([]*User, error) {
 	var models []UserModel

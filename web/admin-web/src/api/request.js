@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { ElMessage } from 'element-plus'
+// import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 
 // 创建axios实例
@@ -20,6 +20,9 @@ request.interceptors.request.use(
     if (userStore.token) {
       config.headers.Authorization = `Bearer ${userStore.token}`
     }
+    
+    // 后台系统标识
+    config.headers['X-Client-Type'] = 'admin-web'
     
     return config
   },
@@ -51,8 +54,8 @@ request.interceptors.response.use(
       window.location.href = '/login'
       return Promise.reject(new Error(data.message || '认证失败'))
     } else {
-      // 其他错误，显示错误消息
-      ElMessage.error(data.message || '请求失败')
+      // 其他错误，不显示 Message，只记录日志
+      console.error('请求失败:', data.message || '请求失败')
       return Promise.reject(new Error(data.message || '请求失败'))
     }
   },
@@ -67,27 +70,28 @@ request.interceptors.response.use(
       
       switch (status) {
         case 401:
-          ElMessage.error(errorMessage || '认证失败，请重新登录')
+          // 认证失败，清除用户信息并跳转到登录页，不显示 Message
+          console.error('认证失败:', errorMessage || '认证失败，请重新登录')
           const userStore = useUserStore()
           userStore.logoutAction()
           window.location.href = '/login'
           break
         case 403:
-          ElMessage.error(errorMessage || '权限不足')
+          console.error('权限不足:', errorMessage || '权限不足')
           break
         case 404:
-          ElMessage.error(errorMessage || '请求的资源不存在')
+          console.error('请求的资源不存在:', errorMessage || '请求的资源不存在')
           break
         case 500:
-          ElMessage.error(errorMessage || '服务器内部错误')
+          console.error('服务器内部错误:', errorMessage || '服务器内部错误')
           break
         default:
-          ElMessage.error(errorMessage || '请求失败')
+          console.error('请求失败:', errorMessage || '请求失败')
       }
     } else if (error.code === 'ECONNABORTED') {
-      ElMessage.error('请求超时')
+      console.error('请求超时')
     } else {
-      ElMessage.error('网络错误')
+      console.error('网络错误')
     }
     
     return Promise.reject(error)

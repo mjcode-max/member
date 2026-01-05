@@ -1,5 +1,142 @@
 basePath: /api/v1
 definitions:
+  internal_interfaces_http_handler.CreateStoreRequest:
+    properties:
+      address:
+        description: 门店地址
+        type: string
+      business_hours_end:
+        description: 营业结束时间 (HH:MM格式)
+        type: string
+      business_hours_start:
+        description: 营业开始时间 (HH:MM格式)
+        type: string
+      contact_person:
+        description: 联系人
+        type: string
+      deposit_amount:
+        description: 押金金额
+        type: number
+      name:
+        description: 门店名称
+        type: string
+      phone:
+        description: 联系电话
+        type: string
+      status:
+        description: '状态: operating, closed, shutdown'
+        type: string
+    required:
+    - name
+    type: object
+  internal_interfaces_http_handler.CreateUserRequest:
+    properties:
+      email:
+        description: 邮箱
+        type: string
+      password:
+        description: 密码（员工必填，顾客不需要）
+        type: string
+      phone:
+        description: 手机号（顾客必填）
+        type: string
+      role:
+        description: 角色
+        enum:
+        - admin
+        - store_manager
+        - technician
+        - customer
+        type: string
+      status:
+        description: '状态: active, inactive'
+        type: string
+      store_id:
+        description: 门店ID（店长和美甲师必填）
+        type: integer
+      username:
+        description: 用户名（员工必填，顾客可选）
+        type: string
+    required:
+    - role
+    type: object
+  internal_interfaces_http_handler.UpdateStoreRequest:
+    properties:
+      address:
+        description: 门店地址
+        type: string
+      business_hours_end:
+        description: 营业结束时间
+        type: string
+      business_hours_start:
+        description: 营业开始时间
+        type: string
+      contact_person:
+        description: 联系人
+        type: string
+      deposit_amount:
+        description: 押金金额
+        type: number
+      name:
+        description: 门店名称
+        type: string
+      phone:
+        description: 联系电话
+        type: string
+      status:
+        description: 状态
+        type: string
+    type: object
+  internal_interfaces_http_handler.UpdateStoreStatusRequest:
+    properties:
+      status:
+        description: 状态
+        enum:
+        - operating
+        - closed
+        - shutdown
+        type: string
+    required:
+    - status
+    type: object
+  internal_interfaces_http_handler.UpdateUserRequest:
+    properties:
+      email:
+        description: 邮箱
+        type: string
+      password:
+        description: 密码（如果提供则更新）
+        type: string
+      phone:
+        description: 手机号
+        type: string
+      role:
+        description: 角色
+        type: string
+      status:
+        description: 状态
+        type: string
+      store_id:
+        description: 门店ID
+        type: integer
+      username:
+        description: 用户名
+        type: string
+      work_status:
+        description: 工作状态（美甲师）
+        type: string
+    type: object
+  internal_interfaces_http_handler.UpdateUserStatusRequest:
+    properties:
+      status:
+        description: 状态
+        enum:
+        - active
+        - inactive
+        type: string
+    required:
+    - status
+    type: object
   internal_interfaces_http_handler.UpdateWorkStatusRequest:
     properties:
       work_status:
@@ -37,6 +174,39 @@ definitions:
       user:
         $ref: '#/definitions/member-pre_internal_domain_user.User'
     type: object
+  member-pre_internal_domain_store.Store:
+    properties:
+      address:
+        description: 门店地址
+        type: string
+      business_hours_end:
+        description: 营业结束时间 (HH:MM格式)
+        type: string
+      business_hours_start:
+        description: 营业开始时间 (HH:MM格式)
+        type: string
+      contact_person:
+        description: 联系人
+        type: string
+      created_at:
+        type: string
+      deposit_amount:
+        description: 押金金额
+        type: number
+      id:
+        type: integer
+      name:
+        description: 门店名称
+        type: string
+      phone:
+        description: 联系电话
+        type: string
+      status:
+        description: '状态: operating, closed, shutdown'
+        type: string
+      updated_at:
+        type: string
+    type: object
   member-pre_internal_domain_user.User:
     properties:
       created_at:
@@ -66,6 +236,23 @@ definitions:
       work_status:
         description: '工作状态（仅美甲师有效）: working, rest, offline'
         type: string
+    type: object
+  member-pre_pkg_utils.Pagination:
+    properties:
+      page:
+        type: integer
+      page_size:
+        type: integer
+      pages:
+        type: integer
+      total:
+        type: integer
+    type: object
+  member-pre_pkg_utils.PaginationResponse:
+    properties:
+      list: {}
+      pagination:
+        $ref: '#/definitions/member-pre_pkg_utils.Pagination'
     type: object
 host: localhost:8080
 info:
@@ -139,6 +326,214 @@ paths:
       summary: 获取当前用户
       tags:
       - 认证
+  /public/stores:
+    get:
+      consumes:
+      - application/json
+      description: 获取门店列表（公开接口，无需认证），支持按状态、名称筛选和分页。默认只返回营业中的门店。
+      parameters:
+      - default: operating
+        description: 状态筛选
+        enum:
+        - operating
+        - closed
+        - shutdown
+        in: query
+        name: status
+        type: string
+      - description: 门店名称（模糊搜索）
+        in: query
+        name: name
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_pkg_utils.PaginationResponse'
+      summary: 获取公开门店列表
+      tags:
+      - 门店管理
+  /stores:
+    get:
+      consumes:
+      - application/json
+      description: 获取门店列表，支持按状态、名称筛选和分页
+      parameters:
+      - description: 状态筛选
+        enum:
+        - operating
+        - closed
+        - shutdown
+        in: query
+        name: status
+        type: string
+      - description: 门店名称（模糊搜索）
+        in: query
+        name: name
+        type: string
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_pkg_utils.PaginationResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取门店列表
+      tags:
+      - 门店管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新门店（仅后台）
+      parameters:
+      - description: 创建门店请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.CreateStoreRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_internal_domain_store.Store'
+      security:
+      - BearerAuth: []
+      summary: 创建门店
+      tags:
+      - 门店管理
+  /stores/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除门店（软删除，仅后台）
+      parameters:
+      - description: 门店ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除门店
+      tags:
+      - 门店管理
+    get:
+      consumes:
+      - application/json
+      description: 根据门店ID获取门店详细信息
+      parameters:
+      - description: 门店ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_internal_domain_store.Store'
+      security:
+      - BearerAuth: []
+      summary: 获取门店详情
+      tags:
+      - 门店管理
+    put:
+      consumes:
+      - application/json
+      description: 更新门店信息
+      parameters:
+      - description: 门店ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新门店请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.UpdateStoreRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_internal_domain_store.Store'
+      security:
+      - BearerAuth: []
+      summary: 更新门店
+      tags:
+      - 门店管理
+  /stores/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: 更新门店状态（营业中/停业/关闭）
+      parameters:
+      - description: 门店ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新门店状态请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.UpdateStoreStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新门店状态
+      tags:
+      - 门店管理
   /stores/{store_id}/users:
     get:
       consumes:
@@ -171,6 +566,77 @@ paths:
       summary: 根据门店获取用户列表
       tags:
       - 用户管理
+  /users:
+    get:
+      consumes:
+      - application/json
+      description: 获取用户列表，支持按角色、状态、门店筛选和分页
+      parameters:
+      - description: 角色筛选
+        enum:
+        - admin
+        - store_manager
+        - technician
+        - customer
+        in: query
+        name: role
+        type: string
+      - description: 状态筛选
+        enum:
+        - active
+        - inactive
+        in: query
+        name: status
+        type: string
+      - description: 门店ID
+        in: query
+        name: store_id
+        type: integer
+      - default: 1
+        description: 页码
+        in: query
+        name: page
+        type: integer
+      - default: 10
+        description: 每页数量
+        in: query
+        name: page_size
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_pkg_utils.PaginationResponse'
+      security:
+      - BearerAuth: []
+      summary: 获取用户列表
+      tags:
+      - 用户管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新用户（店长、美甲师等）
+      parameters:
+      - description: 创建用户请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.CreateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_internal_domain_user.User'
+      security:
+      - BearerAuth: []
+      summary: 创建用户
+      tags:
+      - 用户管理
   /users/{id}:
     get:
       consumes:
@@ -194,11 +660,70 @@ paths:
       summary: 获取用户详情
       tags:
       - 用户管理
+    put:
+      consumes:
+      - application/json
+      description: 更新用户信息
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新用户请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.UpdateUserRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_internal_domain_user.User'
+      security:
+      - BearerAuth: []
+      summary: 更新用户
+      tags:
+      - 用户管理
+  /users/{id}/status:
+    put:
+      consumes:
+      - application/json
+      description: 启用或禁用用户
+      parameters:
+      - description: 用户ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新用户状态请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.UpdateUserStatusRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 更新用户状态
+      tags:
+      - 用户管理
   /users/{id}/work-status:
     put:
       consumes:
       - application/json
-      description: 更新美甲师的工作状态（在岗/休息/离岗）
+      description: 更新美甲师的工作状态（在岗/休息/离岗）。美甲师可以更新自己的状态，店长可以更新自己门店员工的状态，后台可以更新任何美甲师的状态
       parameters:
       - description: 用户ID
         in: path

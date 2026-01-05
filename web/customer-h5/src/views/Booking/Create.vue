@@ -376,23 +376,24 @@ const canSubmit = computed(() => {
 const fetchStores = async () => {
   loadingStores.value = true
   try {
-    // 获取所有门店（包括营业中、停业、关闭）
-    // 传递 status: 'all' 获取所有门店，不传则默认只返回营业中的门店
+    // 只获取营业中的门店
     const response = await getStores({
-      status: 'operating', // 获取所有门店
+      status: 'operating',
       page: 1,
       page_size: 100 // 获取足够多的门店
     })
     
     // 后端返回格式：{ code: 0, data: { list: [...], pagination: {...} } }
+    let stores = []
     if (response.data?.list) {
-      storeList.value = response.data.list
+      stores = response.data.list
     } else if (Array.isArray(response.data)) {
       // 兼容其他可能的返回格式
-      storeList.value = response.data
-    } else {
-      storeList.value = []
+      stores = response.data
     }
+    
+    // 过滤：只显示营业中的门店（双重保险）
+    storeList.value = stores.filter(store => store.status === 'operating')
     
     // 如果URL中有storeId参数，自动选择该门店
     const storeId = route.query.storeId

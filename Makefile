@@ -1,4 +1,4 @@
-.PHONY: wire gen run build migrate-up migrate-down migrate-status package clean test link
+.PHONY: wire gen run build migrate-up migrate-down migrate-status package clean test link frontend-dev frontend-stop
 
 # 生成 Wire 代码
 wire:
@@ -85,3 +85,35 @@ clean:
 	@echo "清理完成"
 
 pre-commit: clean deps wire swagger link test
+
+# 启动所有前端项目（开发模式）
+frontend-dev:
+	@echo "启动所有前端项目..."
+	@mkdir -p logs
+	@echo "  启动 admin-web (后台管理)..."
+	@cd web/admin-web && npm run dev > ../../logs/admin-web.log 2>&1 &
+	@echo "  启动 customer-h5 (客户H5)..."
+	@cd web/customer-h5 && npm run dev > ../../logs/customer-h5.log 2>&1 &
+	@echo "  启动 staff-h5 (员工H5)..."
+	@cd web/staff-h5 && npm run dev > ../../logs/staff-h5.log 2>&1 &
+	@echo "  启动 store-h5 (门店H5)..."
+	@cd web/store-h5 && npm run dev > ../../logs/store-h5.log 2>&1 &
+	@sleep 2
+	@echo ""
+	@echo "所有前端项目已启动！"
+	@echo "  后台管理 (admin-web): http://localhost:3000 (查看日志: tail -f logs/admin-web.log)"
+	@echo "  客户H5 (customer-h5): http://localhost:3001 (查看日志: tail -f logs/customer-h5.log)"
+	@echo "  员工H5 (staff-h5): http://localhost:3002 (查看日志: tail -f logs/staff-h5.log)"
+	@echo "  门店H5 (store-h5): http://localhost:3003 (查看日志: tail -f logs/store-h5.log)"
+	@echo ""
+	@echo "使用 'make frontend-stop' 可以停止所有前端服务"
+	@echo "使用 'tail -f logs/*.log' 可以查看所有日志"
+
+# 停止所有前端项目
+frontend-stop:
+	@echo "停止所有前端项目..."
+	@pkill -f "web/admin-web.*vite" || true
+	@pkill -f "web/customer-h5.*vite" || true
+	@pkill -f "web/staff-h5.*vite" || true
+	@pkill -f "web/store-h5.*vite" || true
+	@echo "所有前端项目已停止"

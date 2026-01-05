@@ -1,10 +1,10 @@
 <template>
   <div class="users-page">
     <div class="page-header">
-      <h2>用户管理</h2>
+      <h2>员工管理</h2>
       <el-button type="primary" @click="handleCreate">
         <el-icon><Plus /></el-icon>
-        新增用户
+        新建员工
       </el-button>
     </div>
     
@@ -42,7 +42,6 @@
             <el-option label="总后台" value="admin" />
             <el-option label="店长" value="store_manager" />
             <el-option label="美甲师" value="technician" />
-            <el-option label="顾客" value="customer" />
           </el-select>
         </el-form-item>
         
@@ -422,8 +421,8 @@ const handleConfirmWorkStatus = async () => {
 const handleDisable = async (row) => {
   try {
     await ElMessageBox.confirm(
-      `确定要禁用用户"${row.username || row.phone}"吗？`,
-      '禁用用户',
+      `确定要禁用员工"${row.username || row.phone}"吗？`,
+      '禁用员工',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -432,12 +431,12 @@ const handleDisable = async (row) => {
     )
     
     await updateUserStatus(row.id, 'inactive')
-    ElMessage.success('用户禁用成功')
+    ElMessage.success('员工禁用成功')
     fetchUserList()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('禁用用户失败:', error)
-      ElMessage.error('禁用用户失败')
+      console.error('禁用员工失败:', error)
+      ElMessage.error('禁用员工失败')
     }
   }
 }
@@ -446,8 +445,8 @@ const handleDisable = async (row) => {
 const handleEnable = async (row) => {
   try {
     await ElMessageBox.confirm(
-      `确定要启用用户"${row.username || row.phone}"吗？`,
-      '启用用户',
+      `确定要启用员工"${row.username || row.phone}"吗？`,
+      '启用员工',
       {
         confirmButtonText: '确定',
         cancelButtonText: '取消',
@@ -456,12 +455,12 @@ const handleEnable = async (row) => {
     )
     
     await updateUserStatus(row.id, 'active')
-    ElMessage.success('用户启用成功')
+    ElMessage.success('员工启用成功')
     fetchUserList()
   } catch (error) {
     if (error !== 'cancel') {
-      console.error('启用用户失败:', error)
-      ElMessage.error('启用用户失败')
+      console.error('启用员工失败:', error)
+      ElMessage.error('启用员工失败')
     }
   }
 }

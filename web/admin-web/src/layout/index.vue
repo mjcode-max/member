@@ -59,9 +59,9 @@
           <el-dropdown @command="handleCommand">
             <span class="user-info">
               <el-avatar :size="32" :src="userStore.userInfo.avatar">
-                {{ userStore.userInfo.name?.charAt(0) }}
+                {{ userStore.userInfo.username?.charAt(0) || 'A' }}
               </el-avatar>
-              <span class="username">{{ userStore.userInfo.name }}</span>
+              <span class="username">{{ userStore.userInfo.username || '管理员' }}</span>
               <el-icon><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
@@ -157,6 +157,7 @@ const handleCommand = async (command) => {
   switch (command) {
     case 'profile':
       // 跳转到个人资料页面
+      router.push('/profile')
       break
     case 'logout':
       try {
