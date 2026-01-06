@@ -23,12 +23,19 @@ var migrateUpCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfgPath := getConfigPath()
 
-		// 初始化应用（只需要配置和数据库）
-		app, err := infrastructure.InitializeApp(infrastructure.ConfigPath(cfgPath))
+		// 初始化应用（迁移专用，Redis连接失败时不阻止）
+		app, err := infrastructure.InitializeAppForMigration(infrastructure.ConfigPath(cfgPath))
 		if err != nil {
 			return fmt.Errorf("初始化应用失败: %w", err)
 		}
 		defer app.DB.Close()
+		if app.Redis != nil {
+			defer app.Redis.Close()
+		}
+
+		if app.Redis == nil {
+			app.Logger.Warn("Redis连接失败，迁移将继续执行（迁移不需要Redis）")
+		}
 
 		app.Logger.Info("开始执行数据库迁移")
 
@@ -49,12 +56,19 @@ var migrateDownCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfgPath := getConfigPath()
 
-		// 初始化应用（只需要配置和数据库）
-		app, err := infrastructure.InitializeApp(infrastructure.ConfigPath(cfgPath))
+		// 初始化应用（迁移专用，Redis连接失败时不阻止）
+		app, err := infrastructure.InitializeAppForMigration(infrastructure.ConfigPath(cfgPath))
 		if err != nil {
 			return fmt.Errorf("初始化应用失败: %w", err)
 		}
 		defer app.DB.Close()
+		if app.Redis != nil {
+			defer app.Redis.Close()
+		}
+
+		if app.Redis == nil {
+			app.Logger.Warn("Redis连接失败，迁移将继续执行（迁移不需要Redis）")
+		}
 
 		app.Logger.Info("开始回滚数据库迁移")
 
@@ -75,12 +89,19 @@ var migrateStatusCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		cfgPath := getConfigPath()
 
-		// 初始化应用（只需要配置和数据库）
-		app, err := infrastructure.InitializeApp(infrastructure.ConfigPath(cfgPath))
+		// 初始化应用（迁移专用，Redis连接失败时不阻止）
+		app, err := infrastructure.InitializeAppForMigration(infrastructure.ConfigPath(cfgPath))
 		if err != nil {
 			return fmt.Errorf("初始化应用失败: %w", err)
 		}
 		defer app.DB.Close()
+		if app.Redis != nil {
+			defer app.Redis.Close()
+		}
+
+		if app.Redis == nil {
+			app.Logger.Warn("Redis连接失败，迁移将继续执行（迁移不需要Redis）")
+		}
 
 		if err := persistence.Status(app.DB.DB(), app.Logger); err != nil {
 			app.Logger.Error("查看迁移状态失败", logger.NewField("error", err.Error()))

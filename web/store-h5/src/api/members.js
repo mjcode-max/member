@@ -9,13 +9,23 @@ export const getMembers = (params) => {
   })
 }
 
-// 创建会员
+// 创建会员（支持FormData）
 export const createMember = (data) => {
-  return request({
+  // 如果是FormData，不设置Content-Type，让浏览器自动设置
+  const config = {
     url: '/members',
     method: 'post',
     data
-  })
+  }
+  
+  // FormData需要特殊处理，不设置Content-Type
+  if (data instanceof FormData) {
+    config.headers = {
+      'Content-Type': 'multipart/form-data'
+    }
+  }
+  
+  return request(config)
 }
 
 // 上传会员人脸照片

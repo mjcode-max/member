@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,6 +11,7 @@ import (
 	"member-pre/internal/domain/member"
 	"member-pre/internal/domain/store"
 	"member-pre/internal/domain/user"
+	"member-pre/internal/infrastructure/face"
 	"member-pre/pkg/logger"
 	"member-pre/pkg/utils"
 )
@@ -19,6 +22,7 @@ type MemberHandler struct {
 	usageService  *member.UsageService
 	storeService  *store.StoreService
 	userService   *user.UserService
+	faceService   face.FaceService
 	logger        logger.Logger
 }
 
@@ -28,6 +32,7 @@ func NewMemberHandler(
 	usageService *member.UsageService,
 	storeService *store.StoreService,
 	userService *user.UserService,
+	faceService face.FaceService,
 	log logger.Logger,
 ) *MemberHandler {
 	return &MemberHandler{
@@ -35,18 +40,31 @@ func NewMemberHandler(
 		usageService:  usageService,
 		storeService:  storeService,
 		userService:   userService,
+		faceService:   faceService,
 		logger:        log,
 	}
 }
 
 // CreateMember 创建会员
 // @Summary 创建会员
-// @Description 创建会员（管理员、店长），包含套餐信息
+// @Description 创建会员（管理员、店长），包含套餐信息，支持上传人脸图片
 // @Tags 会员管理
-// @Accept json
+// @Accept multipart/form-data
 // @Produce json
 // @Security BearerAuth
-// @Param request body CreateMemberRequest true "创建会员请求"
+// @Param name formData string true "会员姓名"
+// @Param phone formData string true "手机号"
+// @Param package_name formData string true "套餐名称"
+// @Param service_type formData string true "服务类型"
+// @Param price formData number true "套餐价格"
+// @Param validity_duration formData int false "固定时长天数"
+// @Param valid_from formData string false "有效期开始时间"
+// @Param valid_to formData string false "有效期结束时间"
+// @Param store_id formData int true "购买门店ID"
+// @Param purchase_amount formData number false "购买金额"
+// @Param status formData string false "状态"
+// @Param description formData string false "套餐描述/备注"
+// @Param face_image formData file false "人脸图片"
 // @Success 200 {object} member.Member
 // @Router /members [post]
 func (h *MemberHandler) CreateMember(c *gin.Context) {
@@ -74,14 +92,41 @@ func (h *MemberHandler) CreateMember(c *gin.Context) {
 	userRoleInterface, _ := c.Get("user_role")
 	userRole, _ := userRoleInterface.(string)
 
+	// 解析multipart/form-data
 	var req CreateMemberRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := c.ShouldBind(&req); err != nil {
 		h.logger.Warn("创建会员请求参数错误",
 			logger.NewField("request_id", requestID),
 			logger.NewField("error", err.Error()),
 		)
 		utils.ErrorWithCode(c, http.StatusBadRequest, "请求参数错误: "+err.Error())
 		return
+	}
+
+	// 获取人脸图片文件（可选）
+	var faceImageData []byte
+	faceFile, err := c.FormFile("face_image")
+	if err == nil && faceFile != nil {
+		// 打开文件
+		file, err := faceFile.Open()
+		if err != nil {
+			h.logger.Warn("打开人脸图片文件失败",
+				logger.NewField("request_id", requestID),
+				logger.NewField("error", err.Error()),
+			)
+			// 人脸图片不是必需的，继续处理
+		} else {
+			defer file.Close()
+			// 读取文件内容
+			faceImageData, err = io.ReadAll(file)
+			if err != nil {
+				h.logger.Warn("读取人脸图片文件失败",
+					logger.NewField("request_id", requestID),
+					logger.NewField("error", err.Error()),
+				)
+				// 人脸图片读取失败，继续处理
+			}
+		}
 	}
 
 	// 权限检查：店长只能创建自己门店的会员
@@ -142,6 +187,33 @@ func (h *MemberHandler) CreateMember(c *gin.Context) {
 		return
 	}
 
+	// 解析日期字段
+	var validFrom, validTo time.Time
+	if req.ValidFrom != "" {
+		validFrom, err = time.Parse("2006-01-02", req.ValidFrom)
+		if err != nil {
+			h.logger.Warn("解析有效期开始日期失败",
+				logger.NewField("request_id", requestID),
+				logger.NewField("valid_from", req.ValidFrom),
+				logger.NewField("error", err.Error()),
+			)
+			utils.ErrorWithCode(c, http.StatusBadRequest, "有效期开始日期格式错误，应为YYYY-MM-DD")
+			return
+		}
+	}
+	if req.ValidTo != "" {
+		validTo, err = time.Parse("2006-01-02", req.ValidTo)
+		if err != nil {
+			h.logger.Warn("解析有效期结束日期失败",
+				logger.NewField("request_id", requestID),
+				logger.NewField("valid_to", req.ValidTo),
+				logger.NewField("error", err.Error()),
+			)
+			utils.ErrorWithCode(c, http.StatusBadRequest, "有效期结束日期格式错误，应为YYYY-MM-DD")
+			return
+		}
+	}
+
 	// 转换为领域实体
 	newMember := &member.Member{
 		Name:            req.Name,
@@ -150,8 +222,8 @@ func (h *MemberHandler) CreateMember(c *gin.Context) {
 		ServiceType:     req.ServiceType,
 		Price:           req.Price,
 		ValidityDuration: req.ValidityDuration,
-		ValidFrom:       req.ValidFrom,
-		ValidTo:         req.ValidTo,
+		ValidFrom:       validFrom,
+		ValidTo:         validTo,
 		StoreID:         *req.StoreID,
 		PurchaseAmount:  req.PurchaseAmount,
 		Status:          req.Status,
@@ -160,6 +232,7 @@ func (h *MemberHandler) CreateMember(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
+	// 先创建会员记录（face_id为空）
 	if err := h.memberService.CreateMember(ctx, newMember); err != nil {
 		h.logger.Error("创建会员失败",
 			logger.NewField("request_id", requestID),
@@ -170,9 +243,42 @@ func (h *MemberHandler) CreateMember(c *gin.Context) {
 		return
 	}
 
+	// 如果有人脸图片，注册人脸并更新会员的face_id
+	if len(faceImageData) > 0 && h.faceService != nil {
+		externalImageId := fmt.Sprintf("member_%d", newMember.ID)
+		faceID, err := h.faceService.RegisterFace(faceImageData, externalImageId)
+		if err != nil {
+			h.logger.Warn("注册人脸失败，会员已创建但face_id为空",
+				logger.NewField("request_id", requestID),
+				logger.NewField("member_id", newMember.ID),
+				logger.NewField("error", err.Error()),
+			)
+			// 人脸注册失败不影响会员创建，face_id保持为空
+		} else {
+			// 更新会员的face_id
+			newMember.FaceID = faceID
+			if err := h.memberService.UpdateMember(ctx, newMember); err != nil {
+				h.logger.Warn("更新会员face_id失败",
+					logger.NewField("request_id", requestID),
+					logger.NewField("member_id", newMember.ID),
+					logger.NewField("face_id", faceID),
+					logger.NewField("error", err.Error()),
+				)
+				// 更新失败不影响返回结果
+			} else {
+				h.logger.Info("人脸注册成功",
+					logger.NewField("request_id", requestID),
+					logger.NewField("member_id", newMember.ID),
+					logger.NewField("face_id", faceID),
+				)
+			}
+		}
+	}
+
 	h.logger.Info("创建会员成功",
 		logger.NewField("request_id", requestID),
 		logger.NewField("member_id", newMember.ID),
+		logger.NewField("has_face", len(faceImageData) > 0),
 		logger.NewField("duration_ms", time.Since(startTime).Milliseconds()),
 	)
 
@@ -1099,18 +1205,18 @@ func (h *MemberHandler) DeleteUsage(c *gin.Context) {
 
 // CreateMemberRequest 创建会员请求
 type CreateMemberRequest struct {
-	Name            string     `json:"name" binding:"required"`              // 会员姓名
-	Phone           string     `json:"phone" binding:"required"`            // 手机号
-	PackageName     string     `json:"package_name" binding:"required"`      // 套餐名称
-	ServiceType     string     `json:"service_type" binding:"required"`     // 服务类型
-	Price           float64    `json:"price" binding:"required,min=0"`      // 套餐价格
-	ValidityDuration int       `json:"validity_duration"`                    // 固定时长天数
-	ValidFrom       time.Time  `json:"valid_from"`                           // 有效期开始时间
-	ValidTo         time.Time  `json:"valid_to"`                              // 有效期结束时间
-	StoreID         *uint      `json:"store_id" binding:"required"`          // 购买门店ID
-	PurchaseAmount  float64    `json:"purchase_amount" binding:"min=0"`       // 购买金额
-	Status          string     `json:"status"`                              // 状态
-	Description     string     `json:"description"`                          // 套餐描述/备注
+	Name            string    `form:"name" binding:"required"`              // 会员姓名
+	Phone           string    `form:"phone" binding:"required"`            // 手机号
+	PackageName     string    `form:"package_name" binding:"required"`      // 套餐名称
+	ServiceType     string    `form:"service_type" binding:"required"`     // 服务类型
+	Price           float64   `form:"price" binding:"required,min=0"`       // 套餐价格
+	ValidityDuration int      `form:"validity_duration"`                    // 固定时长天数
+	ValidFrom       string    `form:"valid_from"`                           // 有效期开始时间 (YYYY-MM-DD)
+	ValidTo         string    `form:"valid_to"`                              // 有效期结束时间 (YYYY-MM-DD)
+	StoreID         *uint     `form:"store_id" binding:"required"`          // 购买门店ID
+	PurchaseAmount  float64   `form:"purchase_amount" binding:"min=0"`       // 购买金额
+	Status          string    `form:"status"`                              // 状态
+	Description     string    `form:"description"`                          // 套餐描述/备注
 }
 
 // UpdateMemberRequest 更新会员请求

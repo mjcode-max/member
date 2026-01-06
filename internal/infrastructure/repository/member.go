@@ -49,6 +49,7 @@ type MemberModel struct {
 	PurchaseTime    time.Time      `json:"purchase_time"`
 	Status          string         `gorm:"size:20;default:'active';not null" json:"status"`
 	Description     string         `gorm:"type:text" json:"description"`
+	FaceID          string         `gorm:"size:255" json:"face_id"` // 华为云人脸ID
 	CreatedBy       uint           `gorm:"index" json:"created_by"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
@@ -81,6 +82,7 @@ func (m *MemberModel) ToEntity() *member.Member {
 		PurchaseTime:    m.PurchaseTime,
 		Status:          m.Status,
 		Description:     m.Description,
+		FaceID:          m.FaceID,
 		CreatedBy:       m.CreatedBy,
 		CreatedAt:       m.CreatedAt,
 		UpdatedAt:       m.UpdatedAt,
@@ -107,6 +109,7 @@ func (m *MemberModel) FromEntity(mem *member.Member) {
 	m.PurchaseTime = mem.PurchaseTime
 	m.Status = mem.Status
 	m.Description = mem.Description
+	m.FaceID = mem.FaceID
 	m.CreatedBy = mem.CreatedBy
 	m.CreatedAt = mem.CreatedAt
 	m.UpdatedAt = mem.UpdatedAt

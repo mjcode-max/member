@@ -196,10 +196,68 @@
             <i class="section-icon">📸</i>
             <span class="section-title">人脸信息录入</span>
           </div>
-          <div class="face-placeholder">
-            <div class="placeholder-icon">📷</div>
-            <div class="placeholder-text">人脸录入功能开发中...</div>
-            <div class="placeholder-hint">点击"跳过"继续创建会员</div>
+          
+          <!-- 摄像头预览区域 -->
+          <div v-if="!faceImageCaptured && !cameraError" class="camera-container">
+            <video
+              ref="videoRef"
+              class="camera-video"
+              autoplay
+              playsinline
+              muted
+            ></video>
+            <canvas
+              ref="canvasRef"
+              class="capture-canvas"
+              style="display: none;"
+            ></canvas>
+            <div class="camera-hint">请正对摄像头，确保光线充足</div>
+          </div>
+
+          <!-- 拍照预览区域 -->
+          <div v-if="faceImageCaptured" class="face-preview-container">
+            <img :src="faceImagePreview" alt="人脸预览" class="face-preview-image" />
+            <div class="preview-hint">✓ 已录入人脸</div>
+          </div>
+
+          <!-- 错误提示 -->
+          <div v-if="cameraError" class="camera-error">
+            <div class="error-icon">⚠️</div>
+            <div class="error-text">{{ cameraError }}</div>
+            <van-button type="primary" size="small" @click="retryCamera">重试</van-button>
+          </div>
+
+          <!-- 操作按钮 -->
+          <div class="face-actions">
+            <van-button
+              v-if="!faceImageCaptured && !cameraError"
+              type="primary"
+              size="large"
+              block
+              :loading="isCapturing"
+              @click="capturePhoto"
+            >
+              拍照
+            </van-button>
+            <van-button
+              v-if="faceImageCaptured"
+              type="default"
+              size="large"
+              block
+              @click="retakePhoto"
+            >
+              重新拍照
+            </van-button>
+            <van-button
+              v-if="faceImageCaptured"
+              type="primary"
+              size="large"
+              block
+              @click="goToNextStep"
+              class="next-step-btn"
+            >
+              下一步
+            </van-button>
           </div>
         </div>
       </div>
@@ -255,11 +313,12 @@
         上一步
       </van-button>
       <van-button
-        v-if="currentStep === 2"
-        class="action-btn skip-btn"
-        @click="skipFaceCapture"
+        v-if="currentStep === 2 && !faceImageCaptured"
+        class="action-btn create-btn"
+        type="primary"
+        @click="createMemberWithoutFace"
       >
-        跳过
+        创建
       </van-button>
       <van-button
         v-if="currentStep === 3"
@@ -320,7 +379,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { showToast, showSuccessToast, showFailToast } from 'vant'
 import { createMember } from '@/api/members'
@@ -357,6 +416,16 @@ const memberForm = reactive({
   remarks: '',
   face_image: ''
 })
+
+// 摄像头相关
+const videoRef = ref(null)
+const canvasRef = ref(null)
+const faceImageCaptured = ref(false)
+const faceImagePreview = ref('')
+const faceImageFile = ref(null)
+const isCapturing = ref(false)
+const cameraError = ref('')
+let mediaStream = null
 
 // 门店选项（从用户信息中获取）
 const storeOptions = computed(() => {
@@ -533,10 +602,127 @@ const prevStep = () => {
   }
 }
 
-// 跳过人脸录入
-const skipFaceCapture = () => {
-  currentStep.value = 3
+// 启动摄像头
+const startCamera = async () => {
+  try {
+    cameraError.value = ''
+    mediaStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: 'user', // 前置摄像头
+        width: { ideal: 640 },
+        height: { ideal: 480 }
+      }
+    })
+    if (videoRef.value) {
+      videoRef.value.srcObject = mediaStream
+    }
+  } catch (error) {
+    console.error('启动摄像头失败:', error)
+    cameraError.value = '无法访问摄像头，请检查权限设置'
+    showFailToast('启动摄像头失败，请检查权限设置')
+  }
 }
+
+// 停止摄像头
+const stopCamera = () => {
+  if (mediaStream) {
+    mediaStream.getTracks().forEach(track => track.stop())
+    mediaStream = null
+  }
+  if (videoRef.value) {
+    videoRef.value.srcObject = null
+  }
+}
+
+// 拍照
+const capturePhoto = async () => {
+  if (!videoRef.value || !canvasRef.value) return
+  
+  isCapturing.value = true
+  try {
+    const canvas = canvasRef.value
+    const video = videoRef.value
+    const context = canvas.getContext('2d')
+    
+    // 设置画布尺寸
+    canvas.width = video.videoWidth
+    canvas.height = video.videoHeight
+    
+    // 绘制当前视频帧
+    context.drawImage(video, 0, 0, canvas.width, canvas.height)
+    
+    // 转换为blob
+    canvas.toBlob((blob) => {
+      if (blob) {
+        // 创建File对象
+        faceImageFile.value = new File([blob], 'face.jpg', { type: 'image/jpeg' })
+        
+        // 创建预览URL
+        faceImagePreview.value = URL.createObjectURL(blob)
+        faceImageCaptured.value = true
+        
+        // 停止摄像头
+        stopCamera()
+        
+        showSuccessToast('拍照成功')
+      }
+    }, 'image/jpeg', 0.8)
+    
+  } catch (error) {
+    console.error('拍照失败:', error)
+    showFailToast('拍照失败，请重试')
+  } finally {
+    isCapturing.value = false
+  }
+}
+
+// 重新拍照
+const retakePhoto = () => {
+  faceImageCaptured.value = false
+  faceImagePreview.value = ''
+  faceImageFile.value = null
+  if (faceImagePreview.value) {
+    URL.revokeObjectURL(faceImagePreview.value)
+  }
+  startCamera()
+}
+
+// 重试摄像头
+const retryCamera = () => {
+  cameraError.value = ''
+  startCamera()
+}
+
+// 不录入人脸直接创建会员
+const createMemberWithoutFace = () => {
+  stopCamera()
+  // 直接提交创建会员（不包含人脸图片）
+  submitMember()
+}
+
+// 检查是否可以不录入人脸直接创建
+const canCreateWithoutFace = computed(() => {
+  // 如果没有拍照，允许不录入人脸直接创建
+  return !faceImageCaptured.value
+})
+
+// 进入下一步（完成人脸录入后）
+const goToNextStep = () => {
+  if (faceImageCaptured.value) {
+    stopCamera()
+    currentStep.value = 3
+  }
+}
+
+
+// 监听步骤变化，进入步骤2时启动摄像头
+watch(currentStep, (newStep) => {
+  if (newStep === 2 && !faceImageCaptured.value) {
+    startCamera()
+  } else if (newStep !== 2) {
+    stopCamera()
+  }
+})
 
 // 提交创建会员
 const submitMember = async () => {
@@ -547,36 +733,42 @@ const submitMember = async () => {
 
   submitting.value = true
   try {
-    // 构建提交数据
-    const submitData = {
-      name: memberForm.name,
-      phone: memberForm.phone,
-      store_id: memberForm.store_id,
-      service_type: memberForm.service_type,
-      package_name: memberForm.package_name,
-      price: parseFloat(memberForm.package_price),
-      purchase_amount: parseFloat(memberForm.purchase_amount) || 0,
-      status: memberForm.status,
-      description: memberForm.remarks || ''
+    // 使用FormData上传
+    const formData = new FormData()
+    
+    // 添加表单字段
+    formData.append('name', memberForm.name)
+    formData.append('phone', memberForm.phone)
+    formData.append('store_id', memberForm.store_id.toString())
+    formData.append('service_type', memberForm.service_type)
+    formData.append('package_name', memberForm.package_name)
+    formData.append('price', parseFloat(memberForm.package_price).toString())
+    formData.append('purchase_amount', (parseFloat(memberForm.purchase_amount) || 0).toString())
+    formData.append('status', memberForm.status)
+    if (memberForm.remarks) {
+      formData.append('description', memberForm.remarks)
     }
     
-    // 处理有效期：将日期字符串转换为 RFC3339 格式（ISO 8601）
+    // 处理有效期：使用YYYY-MM-DD格式
     if (memberForm.valid_from) {
-      const startDate = dayjs(memberForm.valid_from).startOf('day')
-      submitData.valid_from = startDate.toISOString()
+      formData.append('valid_from', memberForm.valid_from)
     }
     
     if (memberForm.valid_to) {
-      const endDate = dayjs(memberForm.valid_to).startOf('day')
-      submitData.valid_to = endDate.toISOString()
+      formData.append('valid_to', memberForm.valid_to)
     }
     
     // 如果提供了固定时长，也发送
     if (memberForm.fixed_duration) {
-      submitData.validity_duration = parseInt(memberForm.fixed_duration)
+      formData.append('validity_duration', memberForm.fixed_duration)
     }
 
-    const response = await createMember(submitData)
+    // 如果有人脸图片，添加到FormData
+    if (faceImageFile.value) {
+      formData.append('face_image', faceImageFile.value)
+    }
+
+    const response = await createMember(formData)
     
     if (response.code === 200 || response.code === 0) {
       showSuccessToast('创建会员成功')
@@ -600,6 +792,14 @@ onMounted(() => {
   if (storeId) {
     memberForm.store_id = storeId
     memberForm.store_name = storeName
+  }
+})
+
+// 组件卸载时清理
+onUnmounted(() => {
+  stopCamera()
+  if (faceImagePreview.value) {
+    URL.revokeObjectURL(faceImagePreview.value)
   }
 })
 </script>
@@ -829,6 +1029,80 @@ onMounted(() => {
   .placeholder-hint {
     font-size: 14px;
     color: #999;
+  }
+}
+
+// 摄像头相关样式
+.camera-container {
+  margin-bottom: 24px;
+  position: relative;
+  background: #000;
+  border-radius: 12px;
+  overflow: hidden;
+  
+  .camera-video {
+    width: 100%;
+    max-width: 100%;
+    display: block;
+    object-fit: cover;
+  }
+  
+  .camera-hint {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.7), transparent);
+    color: white;
+    padding: 16px;
+    font-size: 14px;
+    text-align: center;
+  }
+}
+
+.face-preview-container {
+  margin-bottom: 24px;
+  text-align: center;
+  
+  .face-preview-image {
+    width: 100%;
+    max-width: 400px;
+    border-radius: 12px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1);
+  }
+  
+  .preview-hint {
+    margin-top: 12px;
+    color: #07c160;
+    font-size: 14px;
+    font-weight: 500;
+  }
+}
+
+.camera-error {
+  padding: 40px 20px;
+  text-align: center;
+  
+  .error-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+  }
+  
+  .error-text {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 16px;
+  }
+}
+
+.face-actions {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  
+  .next-step-btn {
+    margin-top: 8px;
   }
 }
 

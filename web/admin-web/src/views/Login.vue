@@ -76,7 +76,7 @@ const loading = ref(false)
 
 const loginForm = reactive({
   username: 'admin',
-  password: 'password',
+  password: 'admin123',
   user_type: 'admin'
 })
 

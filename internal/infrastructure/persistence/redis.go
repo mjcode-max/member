@@ -27,15 +27,29 @@ func NewClient(cfg *config.Config) (*Client, error) {
 		MinIdleConns: redisCfg.MinIdleConns,
 	})
 
-	// 测试连接
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	// 测试连接（使用较短的超时时间）
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	if err := rdb.Ping(ctx).Err(); err != nil {
+		// 关闭连接以避免资源泄漏
+		rdb.Close()
 		return nil, fmt.Errorf("Redis连接失败: %w", err)
 	}
 
 	return &Client{Client: rdb}, nil
+}
+
+// NewClientOptional 创建Redis客户端（可选，连接失败时返回nil和nil error）
+// 用于迁移等不需要Redis的场景
+func NewClientOptional(cfg *config.Config) (*Client, error) {
+	client, err := NewClient(cfg)
+	if err != nil {
+		// 连接失败时返回nil和nil error，允许继续执行
+		// Wire 可以处理这种情况
+		return nil, nil
+	}
+	return client, nil
 }
 
 // 实现pkg/cache.Cache接口

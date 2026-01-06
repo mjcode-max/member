@@ -9,12 +9,13 @@ import (
 
 // Config 应用配置
 type Config struct {
-	Server   ServerConfig   `mapstructure:"server"`
-	Database DatabaseConfig `mapstructure:"database"`
-	Redis    RedisConfig    `mapstructure:"redis"`
-	Log      LogConfig      `mapstructure:"log"`
-	Auth     AuthConfig     `mapstructure:"auth"`
-	Admin    AdminConfig    `mapstructure:"admin"`
+	Server    ServerConfig    `mapstructure:"server"`
+	Database  DatabaseConfig  `mapstructure:"database"`
+	Redis     RedisConfig     `mapstructure:"redis"`
+	Log       LogConfig       `mapstructure:"log"`
+	Auth      AuthConfig      `mapstructure:"auth"`
+	Admin     AdminConfig     `mapstructure:"admin"`
+	HuaweiFRS HuaweiFRSConfig `mapstructure:"huawei_frs"`
 }
 
 // ServerConfig 服务器配置
@@ -74,6 +75,15 @@ type AuthConfig struct {
 type AdminConfig struct {
 	Username string `mapstructure:"username"`
 	Password string `mapstructure:"password"`
+}
+
+// HuaweiFRSConfig 华为云FRS配置
+type HuaweiFRSConfig struct {
+	Endpoint        string `mapstructure:"endpoint"`
+	ProjectID       string `mapstructure:"project_id"`
+	AccessKeyID     string `mapstructure:"access_key_id"`
+	SecretAccessKey string `mapstructure:"secret_access_key"`
+	FaceSetName     string `mapstructure:"face_set_name"`
 }
 
 func (cfg *Config) GetJwtSecret() string {

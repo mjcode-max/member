@@ -39,6 +39,7 @@ type Member struct {
 	PurchaseTime    time.Time `json:"purchase_time"`     // 购买时间
 	Status          string    `json:"status"`           // 状态: active, expired, inactive
 	Description     string    `json:"description"`      // 套餐描述/备注
+	FaceID          string    `json:"face_id"`         // 华为云人脸ID
 	CreatedBy       uint      `json:"created_by"`       // 创建人ID
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
