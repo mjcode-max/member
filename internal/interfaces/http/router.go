@@ -152,7 +152,7 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 			membersProtected.GET("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.memberHandler.GetMember)
 
 			// 根据手机号查询会员列表（所有已认证用户）
-			membersProtected.GET("/phone/:phone", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.memberHandler.GetMemberByPhone)
+			membersProtected.GET("/phone/:phone", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.memberHandler.GetMemberByPhone)
 
 			// 更新会员信息（管理员、店长）
 			// 后台可以更新所有会员，店长只能更新自己门店的会员

@@ -58,78 +58,64 @@
 
     <!-- 会员列表 -->
     <div class="members-container">
-      <div class="members-list">
-        <div 
-          v-for="member in memberList"
-          :key="member.id"
-          class="member-card"
-          @click="handleMemberClick(member)"
-        >
-          <div class="member-header">
-            <div class="member-info">
-              <div class="member-avatar" :class="member.status">
-                {{ member.name.charAt(0) }}
-                <div class="member-level">{{ getMemberLevel(member.package_name) }}</div>
-              </div>
-              <div class="member-details">
-                <h4 class="member-name">{{ member.name }}</h4>
-                <p class="member-phone">{{ formatPhone(member.phone) }}</p>
-                <div class="member-meta">
-                  <span class="member-package">{{ member.package_name }}</span>
-                  <span class="member-times">剩余{{ member.remaining_times }}次</span>
+      <van-list
+        v-model:loading="loading"
+        :finished="finished"
+        finished-text="没有更多了"
+        @load="onLoad"
+      >
+        <div class="members-list">
+          <div 
+            v-for="member in memberList"
+            :key="member.id"
+            class="member-card"
+            @click="handleMemberClick(member)"
+          >
+            <div class="member-header">
+              <div class="member-info">
+                <div class="member-avatar" :class="member.status">
+                  {{ member.name.charAt(0) }}
+                  <div class="member-level">{{ getMemberLevel(member.package_name) }}</div>
+                </div>
+                <div class="member-details">
+                  <h4 class="member-name">{{ member.name }}</h4>
+                  <p class="member-phone">{{ formatPhone(member.phone) }}</p>
+                  <div class="member-meta">
+                    <span class="member-package">{{ member.package_name }}</span>
+                    <span class="member-times">使用 {{ member.used_times }} 次</span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div class="member-status" :class="member.status">
-              {{ getMemberStatusText(member.status) }}
-            </div>
-          </div>
-
-          <div class="member-content">
-            <div class="member-progress">
-              <div class="progress-info">
-                <span class="progress-label">套餐进度</span>
-                <span class="progress-text">
-                  {{ member.total_times - member.remaining_times }}/{{ member.total_times }}
-                </span>
-              </div>
-              <div class="progress-bar">
-                <div 
-                  class="progress-fill"
-                  :style="{ width: getProgressPercent(member) + '%' }"
-                ></div>
+              <div class="member-status" :class="member.status">
+                {{ getMemberStatusText(member.status) }}
               </div>
             </div>
 
-            <div class="member-validity">
-              <div class="validity-item">
-                <i class="validity-icon">📅</i>
-                <span class="validity-text">
-                  有效期至 {{ formatDate(member.valid_to) }}
-                </span>
-                <span class="validity-days" :class="getValidityClass(member.valid_to)">
-                  {{ getValidityDays(member.valid_to) }}
-                </span>
-              </div>
-            </div>
+            <div class="member-content">
+         
 
-            <div class="member-actions">
-              <button class="action-btn face-btn" @click.stop="uploadFace(member)">
-                <i class="btn-icon">📸</i>
-                录入人脸
-              </button>
-              <button class="action-btn edit-btn" @click.stop="editMember(member)">
-                <i class="btn-icon">✏️</i>
-                编辑
-              </button>
-              <button class="action-btn history-btn" @click.stop="viewHistory(member)">
-                <i class="btn-icon">📋</i>
-                消费记录
-              </button>
+              <div class="member-validity">
+                <div class="validity-item">
+                  <i class="validity-icon">📅</i>
+                  <span class="validity-text">
+                    有效期至 {{ formatDate(member.valid_to) }}
+                  </span>
+                  <span class="validity-days" :class="getValidityClass(member.valid_to)">
+                    {{ getValidityDays(member.valid_to) }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="member-actions">
+                <button class="action-btn history-btn" @click.stop="viewHistory(member)">
+                  <i class="btn-icon">📋</i>
+                  使用记录
+                </button>
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </van-list>
     </div>
 
     <!-- 筛选弹窗 -->
@@ -160,17 +146,28 @@
             </div>
           </div>
           <div class="filter-group">
-            <div class="filter-label">套餐类型</div>
+            <div class="filter-label">服务类型</div>
             <div class="filter-options">
               <div 
-                v-for="pkg in packageOptions"
-                :key="pkg.value"
+                v-for="type in serviceTypeOptions"
+                :key="type.value"
                 class="filter-option"
-                :class="{ active: filterPackage === pkg.value }"
-                @click="filterPackage = pkg.value"
+                :class="{ active: filterServiceType === type.value }"
+                @click="filterServiceType = type.value"
               >
-                {{ pkg.label }}
+                {{ type.label }}
               </div>
+            </div>
+          </div>
+          <div class="filter-group">
+            <div class="filter-label">套餐名称</div>
+            <div class="filter-input-container">
+              <input 
+                v-model="filterPackageName"
+                type="text"
+                placeholder="输入套餐名称搜索"
+                class="filter-input"
+              />
             </div>
           </div>
         </div>
@@ -190,7 +187,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast, showLoadingToast, closeToast } from 'vant'
 import { getMembers } from '@/api/members'
 import dayjs from 'dayjs'
 
@@ -199,47 +196,154 @@ const router = useRouter()
 const searchKeyword = ref('')
 const showFilterDialog = ref(false)
 const memberList = ref([])
-const filterStatus = ref('all')
-const filterPackage = ref('all')
+const filterStatus = ref('')
+const filterServiceType = ref('')
+const filterPackageName = ref('')
+
+// 分页相关
+const currentPage = ref(1)
+const pageSize = ref(20)
+const total = ref(0)
+const loading = ref(false)
+const finished = ref(false)
 
 // 统计数据
-const totalMembers = computed(() => memberList.value.length)
-const activeMembers = computed(() => memberList.value.filter(m => m.status === 'active').length)
-const newMembersToday = ref(3)
-const memberRevenue = ref('¥12,800')
+const totalMembers = computed(() => total.value)
+const activeMembers = computed(() => {
+  // 如果列表中有数据，从列表计算；否则返回0
+  if (memberList.value.length > 0) {
+    return memberList.value.filter(m => m.status === 'active').length
+  }
+  return 0
+})
+const newMembersToday = ref(0)
+const memberRevenue = ref('¥0')
 
 // 筛选选项
 const statusOptions = [
-  { value: 'all', label: '全部' },
+  { value: '', label: '全部' },
   { value: 'active', label: '有效' },
   { value: 'expired', label: '过期' },
   { value: 'inactive', label: '停用' }
 ]
 
-const packageOptions = [
-  { value: 'all', label: '全部套餐' },
-  { value: 'basic', label: '基础会员' },
-  { value: 'premium', label: '高级会员' },
-  { value: 'vip', label: 'VIP会员' }
+const serviceTypeOptions = [
+  { value: '', label: '全部类型' },
+  { value: 'nail', label: '美甲' },
+  { value: 'eyelash', label: '美睫' },
+  { value: 'combo', label: '组合' }
 ]
 
 // 获取会员列表
-const fetchMembersList = async () => {
+const fetchMembersList = async (reset = false) => {
+  if (loading.value) return
+  
+  loading.value = true
+  
   try {
-    const response = await getMembers({
-      keyword: searchKeyword.value,
-      status: filterStatus.value,
-      package: filterPackage.value
-    })
-    memberList.value = response.data.members || []
+    // 构建查询参数
+    const params = {
+      page: reset ? 1 : currentPage.value,
+      page_size: pageSize.value
+    }
+    
+    // 搜索关键词：判断是手机号还是姓名
+    if (searchKeyword.value.trim()) {
+      const keyword = searchKeyword.value.trim()
+      // 如果是纯数字，认为是手机号
+      if (/^\d+$/.test(keyword)) {
+        params.phone = keyword
+      } else {
+        params.name = keyword
+      }
+    }
+    
+    // 筛选条件
+    if (filterStatus.value) {
+      params.status = filterStatus.value
+    }
+    if (filterServiceType.value) {
+      params.service_type = filterServiceType.value
+    }
+    if (filterPackageName.value) {
+      params.package_name = filterPackageName.value
+    }
+    
+    const response = await getMembers(params)
+    
+    // 处理分页响应
+    // 后端返回格式: { code: 0, data: { list: [], pagination: { page, page_size, total, pages } } }
+    if (response.data && response.data.list) {
+      const newMembers = response.data.list || []
+      const pagination = response.data.pagination || {}
+      
+      if (reset) {
+        // 重置时清空列表并设置新数据
+        memberList.value = newMembers
+        currentPage.value = pagination.page || 1
+      } else {
+        // 加载更多时追加数据
+        memberList.value = [...memberList.value, ...newMembers]
+      }
+      
+      total.value = pagination.total || 0
+      
+      // 判断是否加载完成
+      // 如果返回的数据少于每页数量，说明已经是最后一页
+      // 或者当前列表长度已经达到总数
+      finished.value = newMembers.length < pageSize.value || memberList.value.length >= total.value
+      
+      // 更新统计数据
+      updateStats()
+    } else {
+      // 兼容旧格式（如果没有分页数据）
+      const members = response.data?.list || response.data?.members || response.data || []
+      if (reset) {
+        memberList.value = members
+        total.value = members.length
+      } else {
+        memberList.value = [...memberList.value, ...members]
+      }
+      finished.value = true
+    }
   } catch (error) {
     console.error('获取会员列表失败:', error)
+    showToast('获取会员列表失败')
+    finished.value = true
+  } finally {
+    loading.value = false
   }
 }
 
-// 搜索处理
+// 更新统计数据（如果需要从后端获取统计数据，可以单独调用接口）
+const updateStats = () => {
+  // 统计数据可以从后端单独接口获取，这里暂时使用列表数据
+  // 如果需要更准确的统计，可以调用专门的统计接口
+}
+
+// 搜索处理（防抖）
+let searchTimer = null
 const handleSearch = () => {
-  fetchMembersList()
+  if (searchTimer) {
+    clearTimeout(searchTimer)
+  }
+  searchTimer = setTimeout(() => {
+    // 重置分页状态
+    currentPage.value = 1
+    finished.value = false
+    memberList.value = []
+    fetchMembersList(true)
+  }, 500)
+}
+
+// 加载更多（触底加载）
+const onLoad = () => {
+  if (finished.value || loading.value) {
+    return
+  }
+  // 加载下一页
+  currentPage.value += 1
+  fetchMembersList(false)
 }
 
 // 获取会员等级
@@ -259,11 +363,6 @@ const getMemberStatusText = (status) => {
   return statusMap[status] || '未知'
 }
 
-// 获取进度百分比
-const getProgressPercent = (member) => {
-  if (member.total_times === 0) return 0
-  return Math.round(((member.total_times - member.remaining_times) / member.total_times) * 100)
-}
 
 // 获取有效期天数
 const getValidityDays = (validTo) => {
@@ -294,39 +393,39 @@ const formatDate = (date) => {
 
 // 处理会员点击
 const handleMemberClick = (member) => {
+  return
   router.push(`/members/${member.id}`)
 }
 
-// 上传人脸
-const uploadFace = (member) => {
-  router.push(`/members/${member.id}/face`)
-}
-
-// 编辑会员
-const editMember = (member) => {
-  router.push(`/members/${member.id}/edit`)
-}
-
-// 查看消费记录
+// 查看使用记录
 const viewHistory = (member) => {
   router.push(`/members/${member.id}/history`)
 }
 
 // 重置筛选
 const resetFilter = () => {
-  filterStatus.value = 'all'
-  filterPackage.value = 'all'
+  filterStatus.value = ''
+  filterServiceType.value = ''
+  filterPackageName.value = ''
   searchKeyword.value = ''
+  // 重置分页状态
+  currentPage.value = 1
+  finished.value = false
+  memberList.value = []
 }
 
 // 应用筛选
 const applyFilter = () => {
   showFilterDialog.value = false
-  fetchMembersList()
+  // 重置分页状态
+  currentPage.value = 1
+  finished.value = false
+  memberList.value = []
+  fetchMembersList(true)
 }
 
 onMounted(() => {
-  fetchMembersList()
+  fetchMembersList(true)
 })
 </script>
 
@@ -718,19 +817,9 @@ onMounted(() => {
   justify-content: center;
   gap: 4px;
   
-  &.face-btn {
+  &.history-btn {
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
-  }
-  
-  &.edit-btn {
-    background: #f0f0f0;
-    color: #666;
-  }
-  
-  &.history-btn {
-    background: #f0f0f0;
-    color: #666;
   }
   
   &:hover {
@@ -814,6 +903,28 @@ onMounted(() => {
   &.active {
     background: linear-gradient(135deg, #ff6b6b, #ffa726);
     color: white;
+  }
+}
+
+.filter-input-container {
+  margin-top: 8px;
+}
+
+.filter-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: all 0.2s ease;
+  
+  &:focus {
+    border-color: #ff6b6b;
+  }
+  
+  &::placeholder {
+    color: #999;
   }
 }
 

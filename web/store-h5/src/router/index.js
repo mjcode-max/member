@@ -44,6 +44,12 @@ const routes = [
         meta: { title: '创建会员', hidden: true }
       },
       {
+        path: 'members/:id/history',
+        name: 'MemberHistory',
+        component: () => import('@/views/Members/History.vue'),
+        meta: { title: '使用记录', hidden: true }
+      },
+      {
         path: 'profile',
         name: 'Profile',
         component: () => import('@/views/Profile.vue'),

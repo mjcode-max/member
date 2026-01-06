@@ -3,7 +3,7 @@ import request from './request'
 // 获取会员列表
 export const getMembers = (params) => {
   return request({
-    url: '/store/members',
+    url: '/members',
     method: 'get',
     params
   })
@@ -12,7 +12,7 @@ export const getMembers = (params) => {
 // 创建会员
 export const createMember = (data) => {
   return request({
-    url: '/store/members',
+    url: '/members',
     method: 'post',
     data
   })
@@ -21,11 +21,44 @@ export const createMember = (data) => {
 // 上传会员人脸照片
 export const uploadFaceImage = (memberId, formData) => {
   return request({
-    url: `/store/members/${memberId}/face`,
+    url: `/members/${memberId}/face`,
     method: 'post',
     data: formData,
     headers: {
       'Content-Type': 'multipart/form-data'
     }
+  })
+}
+
+// 获取会员详情
+export const getMemberById = (memberId) => {
+  return request({
+    url: `/members/${memberId}`,
+    method: 'get'
+  })
+}
+
+// 获取会员使用记录列表
+export const getMemberUsages = (memberId) => {
+  return request({
+    url: `/members/${memberId}/usages`,
+    method: 'get'
+  })
+}
+
+// 创建使用记录
+export const createUsage = (memberId, data) => {
+  return request({
+    url: `/members/${memberId}/usages`,
+    method: 'post',
+    data
+  })
+}
+
+// 删除使用记录
+export const deleteUsage = (usageId) => {
+  return request({
+    url: `/usages/${usageId}`,
+    method: 'delete'
   })
 }

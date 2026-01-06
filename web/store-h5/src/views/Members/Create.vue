@@ -24,7 +24,7 @@
         <div class="step-line"></div>
         <div class="step" :class="{ active: currentStep >= 3 }">
           <div class="step-icon">3</div>
-          <div class="step-text">套餐选择</div>
+          <div class="step-text">完成创建</div>
         </div>
       </div>
     </div>
@@ -32,180 +32,213 @@
     <div class="content-container">
       <!-- 步骤1：基本信息 -->
       <div v-if="currentStep === 1" class="step-content">
-        <div class="section-card">
-          <div class="section-header">
-            <i class="section-icon">👤</i>
-            <span class="section-title">会员基本信息</span>
-          </div>
-          <div class="form-fields">
-            <div class="form-group">
-              <label class="form-label">会员姓名</label>
-              <div class="input-container">
-                <i class="input-icon">👨‍💼</i>
-                <input
-                  v-model="memberForm.name"
-                  type="text"
-          placeholder="请输入会员姓名"
-                  class="form-input"
-                  required
-                />
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">手机号码</label>
-              <div class="input-container">
-                <i class="input-icon">📱</i>
-                <input
-                  v-model="memberForm.phone"
-                  type="tel"
-          placeholder="请输入手机号码"
-                  class="form-input"
-                  required
-                />
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">有效期设置</label>
-              <div class="validity-container">
-                <div class="validity-item" @click="showStartDatePicker = true">
-                  <div class="validity-label">开始日期</div>
-                  <div class="validity-value">
-                    {{ memberForm.valid_from || '选择开始日期' }}
-                  </div>
-                  <i class="arrow-icon">›</i>
+        <van-form @submit="handleNextStep">
+          <!-- 会员信息 -->
+          <div class="form-section">
+            <div class="section-title">会员信息</div>
+            <van-field
+              v-model="memberForm.name"
+              label="会员姓名"
+              placeholder="请输入会员姓名"
+              required
+              :rules="[{ required: true, message: '请输入会员姓名' }]"
+            />
+            <van-field
+              v-model="memberForm.phone"
+              label="手机号"
+              type="tel"
+              placeholder="请输入手机号"
+              required
+              :rules="[
+                { required: true, message: '请输入手机号' },
+                { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号' }
+              ]"
+            />
+            <van-field
+              v-model="memberForm.store_name"
+              label="所属门店"
+              placeholder="请选择门店"
+              readonly
+              required
+              is-link
+              @click="showStorePicker = true"
+              :rules="[{ required: true, message: '请选择门店' }]"
+            />
+            <van-field
+              v-model="memberForm.service_type"
+              label="服务类型"
+              placeholder="请选择服务类型"
+              readonly
+              required
+              is-link
+              @click="showServiceTypePicker = true"
+              :rules="[{ required: true, message: '请选择服务类型' }]"
+            />
+            <van-field
+              v-model="memberForm.package_name"
+              label="套餐名称"
+              placeholder="请输入套餐名称"
+              required
+              :rules="[{ required: true, message: '请输入套餐名称' }]"
+            />
+            <van-field
+              v-model="memberForm.package_price"
+              label="套餐价格"
+              type="number"
+              placeholder="0.00"
+              required
+              :rules="[{ required: true, message: '请输入套餐价格' }]"
+            >
+              <template #button>
+                <div class="number-stepper">
+                  <button type="button" class="stepper-btn" @click.stop="decreasePrice">-</button>
+                  <button type="button" class="stepper-btn" @click.stop="increasePrice">+</button>
                 </div>
-                <div class="validity-item" @click="showEndDatePicker = true">
-                  <div class="validity-label">结束日期</div>
-                  <div class="validity-value">
-                    {{ memberForm.valid_to || '选择结束日期' }}
-                  </div>
-                  <i class="arrow-icon">›</i>
+              </template>
+            </van-field>
+            <van-field
+              v-model="memberForm.purchase_amount"
+              label="购买金额"
+              type="number"
+              placeholder="0.00"
+            >
+              <template #button>
+                <div class="number-stepper">
+                  <button type="button" class="stepper-btn" @click.stop="decreasePurchase">-</button>
+                  <button type="button" class="stepper-btn" @click.stop="increasePurchase">+</button>
                 </div>
-              </div>
+              </template>
+            </van-field>
+            <van-field
+              :model-value="statusDisplayText"
+              label="会员状态"
+              placeholder="有效"
+              readonly
+              is-link
+              @click="showStatusPicker = true"
+            />
+          </div>
+
+          <!-- 有效期设置 -->
+          <div class="form-section">
+            <div class="section-title">有效期设置</div>
+            <van-field
+              v-model="memberForm.valid_from"
+              label="有效期开始"
+              placeholder="选择开始日期"
+              readonly
+              required
+              is-link
+              @click="showStartDatePicker = true"
+              :rules="[{ required: true, message: '请选择有效期开始日期' }]"
+            />
+            <van-field
+              v-model="memberForm.valid_to"
+              label="有效期结束"
+              placeholder="选择结束日期"
+              readonly
+              required
+              is-link
+              @click="showEndDatePicker = true"
+              :rules="[{ required: true, message: '请选择有效期结束日期' }]"
+            />
+            <van-field
+              v-model="memberForm.fixed_duration"
+              label="固定时长 (天)"
+              type="number"
+              placeholder="请输入固定时长天数"
+            >
+              <template #button>
+                <div class="number-stepper">
+                  <button type="button" class="stepper-btn" @click.stop="decreaseDuration">-</button>
+                  <button type="button" class="stepper-btn" @click.stop="increaseDuration">+</button>
+                </div>
+              </template>
+            </van-field>
+            <div class="form-hint">
+              输入固定时长后,系统会自动计算结束日期;选择开始/结束日期后,系统会自动计算固定时长
             </div>
           </div>
-        </div>
+
+          <!-- 备注 -->
+          <div class="form-section">
+            <van-field
+              v-model="memberForm.remarks"
+              label="备注"
+              type="textarea"
+              placeholder="请输入备注"
+              maxlength="500"
+              show-word-limit
+              rows="3"
+            />
+          </div>
+
+          <!-- 下一步按钮 -->
+          <div class="form-actions">
+            <van-button
+              round
+              type="primary"
+              native-type="submit"
+              block
+              :disabled="!canNextStep"
+              class="next-btn"
+            >
+              下一步
+            </van-button>
+          </div>
+        </van-form>
       </div>
 
       <!-- 步骤2：人脸录入 -->
       <div v-if="currentStep === 2" class="step-content">
-        <div class="section-card">
+        <div class="face-capture-section">
           <div class="section-header">
             <i class="section-icon">📸</i>
             <span class="section-title">人脸信息录入</span>
           </div>
-          <div class="face-capture-container">
-            <div class="capture-tips">
-              <div class="tips-icon">💡</div>
-              <div class="tips-text">
-                <p>请让会员正对手机摄像头</p>
-                <p>确保光线充足，面部清晰可见</p>
-              </div>
-            </div>
-            
-            <div class="camera-area">
-              <video
-                ref="videoRef"
-                class="camera-video"
-                autoplay
-                muted
-                playsinline
-                v-show="!capturedImage"
-              ></video>
-              
-              <div v-if="capturedImage" class="captured-preview">
-                <img :src="capturedImage" alt="已拍摄的人脸照片" />
-                <div class="preview-overlay">
-                  <button class="overlay-btn retake-btn" @click="retakePhoto">
-                    重新拍摄
-                  </button>
-                </div>
-              </div>
-              
-              <canvas ref="canvasRef" style="display: none;"></canvas>
-            </div>
-            
-            <div class="capture-actions">
-              <button 
-                v-if="!capturedImage"
-                class="capture-btn"
-                @click="capturePhoto"
-                :disabled="isCapturing"
-              >
-                <i class="capture-icon">📷</i>
-                {{ isCapturing ? '拍摄中...' : '拍摄照片' }}
-              </button>
-            </div>
+          <div class="face-placeholder">
+            <div class="placeholder-icon">📷</div>
+            <div class="placeholder-text">人脸录入功能开发中...</div>
+            <div class="placeholder-hint">点击"跳过"继续创建会员</div>
           </div>
         </div>
       </div>
 
-      <!-- 步骤3：套餐选择 -->
+      <!-- 步骤3：完成创建 -->
       <div v-if="currentStep === 3" class="step-content">
-        <div class="section-card">
+        <div class="review-section">
           <div class="section-header">
-            <i class="section-icon">💎</i>
-            <span class="section-title">选择套餐</span>
+            <i class="section-icon">✓</i>
+            <span class="section-title">确认信息</span>
           </div>
-          <div class="packages-grid">
-            <div 
-              v-for="pkg in packageOptions"
-              :key="pkg.value"
-              class="package-card"
-              :class="{ active: memberForm.package_name === pkg.value }"
-              @click="selectPackage(pkg)"
-            >
-              <div class="package-header">
-                <div class="package-icon">{{ pkg.icon }}</div>
-                <div class="package-badge" v-if="pkg.popular">推荐</div>
-              </div>
-              <h3 class="package-title">{{ pkg.title }}</h3>
-              <div class="package-price">
-                <span class="price-symbol">¥</span>
-                <span class="price-amount">{{ pkg.price }}</span>
-              </div>
-              <div class="package-features">
-                <div v-for="feature in pkg.features" :key="feature" class="feature-item">
-                  <i class="feature-check">✓</i>
-                  <span>{{ feature }}</span>
-                </div>
-              </div>
+          <div class="review-content">
+            <div class="review-item">
+              <span class="review-label">会员姓名：</span>
+              <span class="review-value">{{ memberForm.name }}</span>
             </div>
-          </div>
-          
-          <div class="custom-package" v-if="memberForm.package_name === 'custom'">
-            <div class="form-group">
-              <label class="form-label">自定义套餐名称</label>
-              <div class="input-container">
-                <input
-                  v-model="memberForm.custom_package_name"
-                  type="text"
-                  placeholder="请输入套餐名称"
-                  class="form-input"
-                />
-              </div>
+            <div class="review-item">
+              <span class="review-label">手机号：</span>
+              <span class="review-value">{{ memberForm.phone }}</span>
             </div>
-            <div class="form-group">
-              <label class="form-label">套餐金额（元）</label>
-              <div class="input-container">
-                <input
-                  v-model="memberForm.package_amount"
-                  type="number"
-                  placeholder="请输入套餐金额"
-                  class="form-input"
-                />
-              </div>
+            <div class="review-item">
+              <span class="review-label">所属门店：</span>
+              <span class="review-value">{{ memberForm.store_name }}</span>
             </div>
-            <div class="form-group">
-              <label class="form-label">服务次数</label>
-              <div class="input-container">
-                <input
-                  v-model="memberForm.total_times"
-                  type="number"
-                  placeholder="请输入服务次数"
-                  class="form-input"
-                />
-              </div>
+            <div class="review-item">
+              <span class="review-label">服务类型：</span>
+              <span class="review-value">{{ getServiceTypeText(memberForm.service_type) }}</span>
+            </div>
+            <div class="review-item">
+              <span class="review-label">套餐名称：</span>
+              <span class="review-value">{{ memberForm.package_name }}</span>
+            </div>
+            <div class="review-item">
+              <span class="review-label">套餐价格：</span>
+              <span class="review-value">¥{{ memberForm.package_price || '0.00' }}</span>
+            </div>
+            <div class="review-item">
+              <span class="review-label">有效期：</span>
+              <span class="review-value">{{ memberForm.valid_from }} 至 {{ memberForm.valid_to }}</span>
             </div>
           </div>
         </div>
@@ -214,42 +247,61 @@
 
     <!-- 底部操作按钮 -->
     <div class="bottom-actions">
-      <button 
+      <van-button
         v-if="currentStep > 1"
-        class="step-btn prev-btn"
+        class="action-btn prev-btn"
         @click="prevStep"
       >
         上一步
-      </button>
-      <button 
-        v-if="currentStep < 3"
-        class="step-btn next-btn"
-        @click="nextStep"
-        :disabled="!canNextStep"
+      </van-button>
+      <van-button
+        v-if="currentStep === 2"
+        class="action-btn skip-btn"
+        @click="skipFaceCapture"
       >
-        下一步
-      </button>
-      <button 
+        跳过
+      </van-button>
+      <van-button
         v-if="currentStep === 3"
-        class="step-btn submit-btn"
+        class="action-btn submit-btn"
+        type="primary"
         @click="submitMember"
-        :disabled="!canSubmit"
         :loading="submitting"
+        :disabled="!canSubmit"
       >
         {{ submitting ? '创建中...' : '创建会员' }}
-      </button>
+      </van-button>
     </div>
 
+    <!-- 门店选择器 -->
+    <van-popup v-model:show="showStorePicker" position="bottom" round>
+      <van-picker
+        :columns="storeOptions"
+        @confirm="onStoreConfirm"
+        @cancel="showStorePicker = false"
+      />
+    </van-popup>
+
+    <!-- 服务类型选择器 -->
+    <van-popup v-model:show="showServiceTypePicker" position="bottom" round>
+      <van-picker
+        :columns="serviceTypeOptions"
+        @confirm="onServiceTypeConfirm"
+        @cancel="showServiceTypePicker = false"
+      />
+    </van-popup>
+
+    <!-- 会员状态选择器 -->
+    <van-popup v-model:show="showStatusPicker" position="bottom" round>
+      <van-picker
+        :columns="statusOptions"
+        @confirm="onStatusConfirm"
+        @cancel="showStatusPicker = false"
+      />
+    </van-popup>
+
     <!-- 日期选择器 -->
-    <van-popup 
-      v-model:show="showStartDatePicker" 
-      position="bottom" 
-          round
-        >
-      <div class="popup-header">
-        <div class="popup-title">选择开始日期</div>
-        <div class="popup-close" @click="showStartDatePicker = false">×</div>
-      </div>
+    <van-popup v-model:show="showStartDatePicker" position="bottom" round>
       <van-date-picker
         v-model="startDate"
         @confirm="onStartDateConfirm"
@@ -257,15 +309,7 @@
       />
     </van-popup>
 
-    <van-popup 
-      v-model:show="showEndDatePicker" 
-      position="bottom" 
-      round
-    >
-      <div class="popup-header">
-        <div class="popup-title">选择结束日期</div>
-        <div class="popup-close" @click="showEndDatePicker = false">×</div>
-      </div>
+    <van-popup v-model:show="showEndDatePicker" position="bottom" round>
       <van-date-picker
         v-model="endDate"
         @confirm="onEndDateConfirm"
@@ -276,100 +320,209 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { showToast } from 'vant'
+import { showToast, showSuccessToast, showFailToast } from 'vant'
 import { createMember } from '@/api/members'
+import { useUserStore } from '@/stores/user'
 import dayjs from 'dayjs'
 
 const router = useRouter()
+const userStore = useUserStore()
 
 const currentStep = ref(1)
 const submitting = ref(false)
-const isCapturing = ref(false)
-const capturedImage = ref('')
-const videoRef = ref(null)
-const canvasRef = ref(null)
+const showStorePicker = ref(false)
+const showServiceTypePicker = ref(false)
+const showStatusPicker = ref(false)
 const showStartDatePicker = ref(false)
 const showEndDatePicker = ref(false)
-const startDate = ref(new Date())
-const endDate = ref(new Date(Date.now() + 365 * 24 * 60 * 60 * 1000))
 
-let stream = null
+const startDate = ref([dayjs().format('YYYY'), dayjs().format('MM'), dayjs().format('DD')])
+const endDate = ref([dayjs().add(365, 'day').format('YYYY'), dayjs().add(365, 'day').format('MM'), dayjs().add(365, 'day').format('DD')])
 
 const memberForm = reactive({
   name: '',
   phone: '',
-  valid_from: '',
-  valid_to: '',
+  store_id: null,
+  store_name: '',
+  service_type: '',
   package_name: '',
-  custom_package_name: '',
-  package_amount: '',
-  total_times: '',
+  package_price: '0.00',
+  purchase_amount: '0.00',
+  status: 'active',
+  valid_from: dayjs().format('YYYY-MM-DD'),
+  valid_to: dayjs().add(365, 'day').format('YYYY-MM-DD'),
+  fixed_duration: '',
+  remarks: '',
   face_image: ''
 })
 
-const packageOptions = [
-  {
-    value: 'basic',
-    title: '基础套餐',
-    price: '299',
-    icon: '🥉',
-    features: ['美甲服务 10次', '基础护理', '会员折扣'],
-    popular: false
-  },
-  {
-    value: 'premium',
-    title: '高级套餐',
-    price: '599',
-    icon: '🥈',
-    features: ['美甲服务 20次', '美睫服务 5次', '专属技师', '优先预约'],
-    popular: true
-  },
-  {
-    value: 'vip',
-    title: 'VIP套餐',
-    price: '999',
-    icon: '🥇',
-    features: ['不限次数服务', '私人定制', '专属技师', '免费上门'],
-    popular: false
-  },
-  {
-    value: 'custom',
-    title: '自定义套餐',
-    price: '自定义',
-    icon: '⚙️',
-    features: ['灵活配置', '个性化服务', '自定义价格'],
-    popular: false
+// 门店选项（从用户信息中获取）
+const storeOptions = computed(() => {
+  const storeId = userStore.userInfo?.store_id
+  const storeName = userStore.userInfo?.store_name || '当前门店'
+  if (storeId) {
+    return [{ text: storeName, value: storeId }]
   }
+  return []
+})
+
+// 服务类型选项
+const serviceTypeOptions = [
+  { text: '美甲', value: 'nail' },
+  { text: '美睫', value: 'eyelash' },
+  { text: '组合', value: 'combo' }
 ]
+
+// 会员状态选项
+const statusOptions = [
+  { text: '有效', value: 'active' },
+  { text: '过期', value: 'expired' },
+  { text: '停用', value: 'inactive' }
+]
+
+// 获取服务类型文本
+const getServiceTypeText = (value) => {
+  const option = serviceTypeOptions.find(opt => opt.value === value)
+  return option ? option.text : value
+}
+
+// 获取会员状态文本
+const getStatusText = (value) => {
+  const option = statusOptions.find(opt => opt.value === value)
+  return option ? option.text : value
+}
+
+// 会员状态显示文本（计算属性）
+const statusDisplayText = computed(() => {
+  return getStatusText(memberForm.status) || '有效'
+})
 
 // 检查是否可以进入下一步
 const canNextStep = computed(() => {
-  if (currentStep.value === 1) {
-    return memberForm.name && memberForm.phone && memberForm.valid_from && memberForm.valid_to
-  }
-  if (currentStep.value === 2) {
-    return capturedImage.value
-  }
-  return false
+  return memberForm.name &&
+    memberForm.phone &&
+    memberForm.store_id &&
+    memberForm.service_type &&
+    memberForm.package_name &&
+    memberForm.package_price &&
+    memberForm.valid_from &&
+    memberForm.valid_to
 })
 
 // 检查是否可以提交
 const canSubmit = computed(() => {
-  return memberForm.package_name && (
-    memberForm.package_name !== 'custom' || 
-    (memberForm.custom_package_name && memberForm.package_amount && memberForm.total_times)
-  )
+  return canNextStep.value && currentStep.value === 3
 })
 
-// 下一步
-const nextStep = () => {
-  if (currentStep.value < 3) {
-    currentStep.value++
-    if (currentStep.value === 2) {
-      startCamera()
+// 数字步进器方法
+const decreasePrice = () => {
+  const price = parseFloat(memberForm.package_price) || 0
+  if (price > 0) {
+    memberForm.package_price = (price - 1).toFixed(2)
+  }
+}
+
+const increasePrice = () => {
+  const price = parseFloat(memberForm.package_price) || 0
+  memberForm.package_price = (price + 1).toFixed(2)
+}
+
+const decreasePurchase = () => {
+  const amount = parseFloat(memberForm.purchase_amount) || 0
+  if (amount > 0) {
+    memberForm.purchase_amount = (amount - 1).toFixed(2)
+  }
+}
+
+const increasePurchase = () => {
+  const amount = parseFloat(memberForm.purchase_amount) || 0
+  memberForm.purchase_amount = (amount + 1).toFixed(2)
+}
+
+const decreaseDuration = () => {
+  const duration = parseInt(memberForm.fixed_duration) || 0
+  if (duration > 0) {
+    memberForm.fixed_duration = (duration - 1).toString()
+    calculateEndDate()
+  }
+}
+
+const increaseDuration = () => {
+  const duration = parseInt(memberForm.fixed_duration) || 0
+  memberForm.fixed_duration = (duration + 1).toString()
+  calculateEndDate()
+}
+
+// 计算结束日期
+const calculateEndDate = () => {
+  if (memberForm.fixed_duration && memberForm.valid_from) {
+    const days = parseInt(memberForm.fixed_duration)
+    if (days > 0) {
+      memberForm.valid_to = dayjs(memberForm.valid_from).add(days, 'day').format('YYYY-MM-DD')
+      endDate.value = [
+        dayjs(memberForm.valid_to).format('YYYY'),
+        dayjs(memberForm.valid_to).format('MM'),
+        dayjs(memberForm.valid_to).format('DD')
+      ]
     }
+  }
+}
+
+// 计算固定时长
+const calculateDuration = () => {
+  if (memberForm.valid_from && memberForm.valid_to) {
+    const days = dayjs(memberForm.valid_to).diff(dayjs(memberForm.valid_from), 'day')
+    if (days > 0) {
+      memberForm.fixed_duration = days.toString()
+    }
+  }
+}
+
+// 选择器确认事件
+const onStoreConfirm = ({ selectedOptions }) => {
+  if (selectedOptions.length > 0) {
+    memberForm.store_id = selectedOptions[0].value
+    memberForm.store_name = selectedOptions[0].text
+  }
+  showStorePicker.value = false
+}
+
+const onServiceTypeConfirm = ({ selectedOptions }) => {
+  if (selectedOptions.length > 0) {
+    memberForm.service_type = selectedOptions[0].value
+  }
+  showServiceTypePicker.value = false
+}
+
+const onStatusConfirm = ({ selectedOptions }) => {
+  if (selectedOptions.length > 0) {
+    memberForm.status = selectedOptions[0].value
+  }
+  showStatusPicker.value = false
+}
+
+const onStartDateConfirm = ({ selectedValues }) => {
+  const date = selectedValues.join('-')
+  memberForm.valid_from = date
+  startDate.value = selectedValues
+  calculateDuration()
+  showStartDatePicker.value = false
+}
+
+const onEndDateConfirm = ({ selectedValues }) => {
+  const date = selectedValues.join('-')
+  memberForm.valid_to = date
+  endDate.value = selectedValues
+  calculateDuration()
+  showEndDatePicker.value = false
+}
+
+// 下一步
+const handleNextStep = () => {
+  if (canNextStep.value) {
+    currentStep.value = 2
   }
 }
 
@@ -377,704 +530,374 @@ const nextStep = () => {
 const prevStep = () => {
   if (currentStep.value > 1) {
     currentStep.value--
-    if (currentStep.value === 1) {
-      stopCamera()
-    }
   }
 }
 
-// 启动摄像头
-const startCamera = async () => {
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user' }
-    })
-    if (videoRef.value) {
-      videoRef.value.srcObject = stream
-    }
-  } catch (error) {
-    console.error('启动摄像头失败:', error)
-    showToast('启动摄像头失败，请检查权限设置')
-  }
-}
-
-// 拍摄照片
-const capturePhoto = async () => {
-  if (!videoRef.value || !canvasRef.value) return
-  
-  isCapturing.value = true
-  
-  try {
-    const canvas = canvasRef.value
-    const video = videoRef.value
-    const context = canvas.getContext('2d')
-    
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    context.drawImage(video, 0, 0, canvas.width, canvas.height)
-    
-    const imageData = canvas.toDataURL('image/jpeg', 0.8)
-    capturedImage.value = imageData
-    memberForm.face_image = imageData
-    
-    stopCamera()
-    showToast('人脸照片拍摄成功')
-    
-  } catch (error) {
-    console.error('拍照失败:', error)
-    showToast('拍照失败，请重试')
-  } finally {
-    isCapturing.value = false
-  }
-}
-
-// 重新拍照
-const retakePhoto = () => {
-  capturedImage.value = ''
-  memberForm.face_image = ''
-  startCamera()
-}
-
-// 停止摄像头
-const stopCamera = () => {
-  if (stream) {
-    stream.getTracks().forEach(track => track.stop())
-    stream = null
-  }
-}
-
-// 选择套餐
-const selectPackage = (pkg) => {
-  memberForm.package_name = pkg.value
-  if (pkg.value !== 'custom') {
-    memberForm.package_amount = pkg.price
-    memberForm.total_times = pkg.value === 'basic' ? '10' : pkg.value === 'premium' ? '25' : '99'
-  }
-}
-
-// 日期确认
-const onStartDateConfirm = () => {
-  memberForm.valid_from = dayjs(startDate.value).format('YYYY-MM-DD')
-  showStartDatePicker.value = false
-}
-
-const onEndDateConfirm = () => {
-  memberForm.valid_to = dayjs(endDate.value).format('YYYY-MM-DD')
-  showEndDatePicker.value = false
+// 跳过人脸录入
+const skipFaceCapture = () => {
+  currentStep.value = 3
 }
 
 // 提交创建会员
 const submitMember = async () => {
+  if (!canSubmit.value) {
+    showFailToast('请完善必填信息')
+    return
+  }
+
   submitting.value = true
   try {
-    const data = {
-      ...memberForm,
-      package_name: memberForm.package_name === 'custom' ? memberForm.custom_package_name : memberForm.package_name,
-      package_amount: parseInt(memberForm.package_amount) * 100, // 转换为分
-      total_times: parseInt(memberForm.total_times),
-      remaining_times: parseInt(memberForm.total_times)
+    // 构建提交数据
+    const submitData = {
+      name: memberForm.name,
+      phone: memberForm.phone,
+      store_id: memberForm.store_id,
+      service_type: memberForm.service_type,
+      package_name: memberForm.package_name,
+      price: parseFloat(memberForm.package_price),
+      purchase_amount: parseFloat(memberForm.purchase_amount) || 0,
+      status: memberForm.status,
+      description: memberForm.remarks || ''
+    }
+    
+    // 处理有效期：将日期字符串转换为 RFC3339 格式（ISO 8601）
+    if (memberForm.valid_from) {
+      const startDate = dayjs(memberForm.valid_from).startOf('day')
+      submitData.valid_from = startDate.toISOString()
+    }
+    
+    if (memberForm.valid_to) {
+      const endDate = dayjs(memberForm.valid_to).startOf('day')
+      submitData.valid_to = endDate.toISOString()
+    }
+    
+    // 如果提供了固定时长，也发送
+    if (memberForm.fixed_duration) {
+      submitData.validity_duration = parseInt(memberForm.fixed_duration)
     }
 
-    await createMember(data)
-    showToast('会员创建成功')
-    router.push('/members')
+    const response = await createMember(submitData)
+    
+    if (response.code === 200 || response.code === 0) {
+      showSuccessToast('创建会员成功')
+      router.push('/members')
+    } else {
+      showFailToast(response.message || '创建会员失败')
+    }
   } catch (error) {
     console.error('创建会员失败:', error)
-    showToast('创建失败，请重试')
+    showFailToast(error.response?.data?.message || '创建会员失败，请稍后重试')
   } finally {
     submitting.value = false
   }
 }
 
+// 初始化
 onMounted(() => {
-  // 设置默认日期
-  memberForm.valid_from = dayjs().format('YYYY-MM-DD')
-  memberForm.valid_to = dayjs().add(1, 'year').format('YYYY-MM-DD')
-})
-
-onUnmounted(() => {
-  stopCamera()
+  // 自动填充门店信息
+  const storeId = userStore.userInfo?.store_id
+  const storeName = userStore.userInfo?.store_name || '当前门店'
+  if (storeId) {
+    memberForm.store_id = storeId
+    memberForm.store_name = storeName
+  }
 })
 </script>
 
 <style lang="scss" scoped>
 .member-create-page {
-  background: linear-gradient(180deg, #f8f9ff 0%, #f0f2ff 100%);
   min-height: 100vh;
-  padding-bottom: 100px;
+  background: #f5f5f5;
+  padding-bottom: 80px;
 }
 
-// 自定义导航栏
 .custom-nav {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   
   :deep(.van-nav-bar__title) {
-    color: #333;
-    font-weight: 600;
-    font-size: 18px;
+    color: white;
+  }
+  
+  :deep(.van-nav-bar__text),
+  :deep(.van-nav-bar__arrow) {
+    color: white;
   }
 }
 
 // 步骤指示器
 .steps-section {
+  background: white;
   padding: 20px;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(10px);
+  margin-bottom: 12px;
 }
 
 .steps-container {
   display: flex;
   align-items: center;
   justify-content: center;
-  max-width: 300px;
-  margin: 0 auto;
 }
 
 .step {
   display: flex;
   flex-direction: column;
   align-items: center;
-  color: rgba(102, 126, 234, 0.4);
-  transition: all 0.3s ease;
+  position: relative;
+  
+  .step-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #e0e0e0;
+    color: #999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.3s;
+  }
+  
+  .step-text {
+    margin-top: 8px;
+    font-size: 12px;
+    color: #999;
+  }
   
   &.active {
-    color: #667eea;
-    
     .step-icon {
       background: linear-gradient(135deg, #667eea, #764ba2);
       color: white;
-      transform: scale(1.1);
+    }
+    .step-text {
+      color: #667eea;
+      font-weight: 600;
     }
   }
   
   &.completed {
-    color: #52c41a;
-    
     .step-icon {
       background: #52c41a;
       color: white;
-      
-      &::after {
-        content: '✓';
-        font-size: 12px;
-      }
     }
   }
 }
 
-.step-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #f0f0f0;
-  color: #999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: bold;
-  margin-bottom: 8px;
-  transition: all 0.3s ease;
-}
-
-.step-text {
-  font-size: 12px;
-  text-align: center;
-  white-space: nowrap;
-}
-
 .step-line {
-  width: 40px;
+  width: 60px;
   height: 2px;
-  background: #f0f0f0;
-  margin: 0 10px;
+  background: #e0e0e0;
+  margin: 0 12px;
+  margin-top: -20px;
 }
 
-// 内容容器
 .content-container {
-  padding: 20px 16px;
+  padding: 0 16px;
 }
 
 .step-content {
-  animation: slideInUp 0.4s ease-out;
+  animation: fadeIn 0.3s;
 }
 
-// 卡片样式
-.section-card {
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-radius: 16px;
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+// 表单样式
+.form-section {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+:deep(.van-field) {
+  padding: 12px 0;
+  
+  .van-field__label {
+    width: 90px;
+    font-size: 14px;
+    color: #333;
+  }
+  
+  .van-field__control {
+    font-size: 14px;
+  }
+  
+  .van-field__required-mark {
+    color: #ff4d4f;
+  }
+}
+
+.number-stepper {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stepper-btn {
+  width: 28px;
+  height: 28px;
+  border: 1px solid #e0e0e0;
+  background: white;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #666;
+  cursor: pointer;
+  
+  &:active {
+    background: #f5f5f5;
+  }
+}
+
+.form-hint {
+  font-size: 12px;
+  color: #999;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
+.form-actions {
+  margin-top: 24px;
+  margin-bottom: 24px;
+}
+
+.next-btn {
+  height: 48px;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+// 人脸录入
+.face-capture-section {
+  background: white;
+  border-radius: 12px;
   padding: 24px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  text-align: center;
 }
 
 .section-header {
   display: flex;
   align-items: center;
-  margin-bottom: 20px;
-}
-
-.section-icon {
-  font-size: 20px;
-  margin-right: 8px;
-}
-
-.section-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #333;
-}
-
-// 表单样式
-.form-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-.form-group {
-  display: flex;
-  flex-direction: column;
-}
-
-.form-label {
-  font-size: 14px;
-  font-weight: 500;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.input-container {
-  display: flex;
-  align-items: center;
-  background: #f8f9fa;
-  border-radius: 12px;
-  padding: 0 16px;
-  border: 2px solid transparent;
-  transition: all 0.3s ease;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 24px;
   
-  &:focus-within {
-    background: white;
-    border-color: #667eea;
-    box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+  .section-icon {
+    font-size: 24px;
+  }
+  
+  .section-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333;
   }
 }
 
-.input-icon {
-  font-size: 16px;
-  margin-right: 12px;
-  color: #999;
-}
-
-.form-input {
-  flex: 1;
-  border: none;
-  outline: none;
-  padding: 16px 0;
-  font-size: 16px;
-  background: transparent;
-  color: #333;
+.face-placeholder {
+  padding: 60px 20px;
   
-  &::placeholder {
+  .placeholder-icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+  }
+  
+  .placeholder-text {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 8px;
+  }
+  
+  .placeholder-hint {
+    font-size: 14px;
     color: #999;
   }
 }
 
-// 有效期设置
-.validity-container {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.validity-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background: #e9ecef;
-  }
-}
-
-.validity-label {
-  font-size: 14px;
-  color: #666;
-}
-
-.validity-value {
-  font-size: 15px;
-  color: #333;
-  font-weight: 500;
-}
-
-.arrow-icon {
-  font-size: 16px;
-  color: #ccc;
-}
-
-// 人脸拍摄
-.face-capture-container {
-  text-align: center;
-}
-
-.capture-tips {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px;
-  background: #fff7e6;
-  border-radius: 12px;
-  margin-bottom: 20px;
-}
-
-.tips-icon {
-  font-size: 24px;
-}
-
-.tips-text {
-  flex: 1;
-  text-align: left;
-  
-  p {
-    margin: 0;
-    font-size: 14px;
-    color: #fa8c16;
-    line-height: 1.4;
-  }
-}
-
-.camera-area {
-  width: 280px;
-  height: 280px;
-  margin: 0 auto 20px;
-  border-radius: 20px;
-  overflow: hidden;
-  background: #000;
-  position: relative;
-  border: 4px solid rgba(102, 126, 234, 0.2);
-}
-
-.camera-video {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transform: scaleX(-1);
-}
-
-.captured-preview {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-}
-
-.preview-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  
-  .captured-preview:hover & {
-    opacity: 1;
-  }
-}
-
-.overlay-btn {
-  padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
-  border-radius: 20px;
-  color: #333;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.capture-actions {
-  display: flex;
-  justify-content: center;
-}
-
-.capture-btn {
-  padding: 12px 24px;
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: white;
-  border: none;
-  border-radius: 24px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  
-  &:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
-  }
-  
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-  }
-}
-
-.capture-icon {
-  font-size: 16px;
-}
-
-// 套餐选择
-.packages-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-
-.package-card {
+// 确认信息
+.review-section {
   background: white;
-  border-radius: 16px;
-  padding: 20px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-  position: relative;
-  
-  &.active {
-    border-color: #667eea;
-    transform: translateY(-2px);
-    box-shadow: 0 8px 30px rgba(102, 126, 234, 0.2);
-  }
-  
-  &:hover:not(.active) {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 24px rgba(0, 0, 0, 0.1);
-  }
-}
-
-.package-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.package-icon {
-  font-size: 32px;
-}
-
-.package-badge {
-  background: linear-gradient(135deg, #ff6b6b, #ffa726);
-  color: white;
-  padding: 4px 8px;
-  border-radius: 8px;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.package-title {
-  font-size: 18px;
-  font-weight: 700;
-  color: #333;
-  margin-bottom: 8px;
-}
-
-.package-price {
-  display: flex;
-  align-items: baseline;
-  margin-bottom: 16px;
-}
-
-.price-symbol {
-  font-size: 14px;
-  color: #ff6b6b;
-  font-weight: 600;
-}
-
-.price-amount {
-  font-size: 24px;
-  font-weight: 700;
-  color: #ff6b6b;
-  margin-left: 4px;
-}
-
-.package-features {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.feature-item {
-  display: flex;
-  align-items: center;
-  font-size: 14px;
-  color: #666;
-}
-
-.feature-check {
-  color: #52c41a;
-  font-weight: bold;
-  margin-right: 8px;
-}
-
-// 自定义套餐
-.custom-package {
-  margin-top: 20px;
-  padding: 20px;
-  background: #f8f9ff;
   border-radius: 12px;
-  border: 2px dashed #667eea;
+  padding: 16px;
 }
 
-// 底部操作
+.review-content {
+  .review-item {
+    display: flex;
+    padding: 12px 0;
+    border-bottom: 1px solid #f0f0f0;
+    
+    &:last-child {
+      border-bottom: none;
+    }
+    
+    .review-label {
+      width: 100px;
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .review-value {
+      flex: 1;
+      font-size: 14px;
+      color: #333;
+      font-weight: 500;
+    }
+  }
+}
+
+// 底部操作按钮
 .bottom-actions {
   position: fixed;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 16px;
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+  background: white;
+  padding: 12px 16px;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   gap: 12px;
+  z-index: 100;
 }
 
-.step-btn {
+.action-btn {
   flex: 1;
-  height: 48px;
-  border: none;
-  border-radius: 24px;
+  height: 44px;
+  border-radius: 8px;
   font-size: 16px;
   font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
   
   &.prev-btn {
     background: #f5f5f5;
     color: #666;
-    
-    &:hover {
-      background: #e9ecef;
-    }
   }
   
-  &.next-btn {
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(102, 126, 234, 0.3);
-    }
+  &.skip-btn {
+    background: #f5f5f5;
+    color: #666;
   }
   
   &.submit-btn {
-    background: linear-gradient(135deg, #52c41a, #73d13d);
+    background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
-    
-    &:hover:not(:disabled) {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(82, 196, 26, 0.3);
-    }
-  }
-  
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    transform: none !important;
-  }
-}
-
-// 弹窗样式
-.popup-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 16px 20px;
-  border-bottom: 1px solid #f0f0f0;
-}
-
-.popup-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-}
-
-.popup-close {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: #f5f5f5;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background: #e9ecef;
-  }
-}
-
-// 响应式设计
-@media (max-width: 375px) {
-  .camera-area {
-    width: 240px;
-    height: 240px;
-  }
-  
-  .packages-grid {
-    gap: 8px;
-  }
-  
-  .package-card {
-    padding: 16px;
-  }
-  
-  .bottom-actions {
-    flex-direction: column;
-  }
-  
-  .step-btn {
-    width: 100%;
-  }
-}
-
-// 动画效果
-@keyframes slideInUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 </style>
