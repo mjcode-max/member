@@ -55,8 +55,13 @@ func Up(db *gorm.DB, log logger.Logger, cfg *config.Config) error {
 			// 即使迁移已执行，也执行 AutoMigrate 来更新表结构（添加新字段等）
 			log.Info("迁移已执行，执行 AutoMigrate 更新表结构", logger.NewField("model", modelName))
 			if err := db.AutoMigrate(model); err != nil {
-				log.Warn("AutoMigrate 更新表结构失败", logger.NewField("model", modelName), logger.NewField("error", err.Error()))
-				// 不返回错误，继续执行其他迁移
+				// 检查是否是删除不存在索引的错误，如果是则忽略（这是 GORM 的已知问题）
+				if isIndexDropError(err) {
+					log.Info("AutoMigrate 更新表结构成功（忽略索引删除错误）", logger.NewField("model", modelName))
+				} else {
+					log.Warn("AutoMigrate 更新表结构失败", logger.NewField("model", modelName), logger.NewField("error", err.Error()))
+					// 不返回错误，继续执行其他迁移
+				}
 			} else {
 				log.Info("AutoMigrate 更新表结构成功", logger.NewField("model", modelName))
 			}
@@ -66,7 +71,12 @@ func Up(db *gorm.DB, log logger.Logger, cfg *config.Config) error {
 		// 执行迁移（使用 GORM 的 AutoMigrate）
 		log.Info("开始执行迁移", logger.NewField("model", modelName))
 		if err := db.AutoMigrate(model); err != nil {
-			return fmt.Errorf("执行迁移失败 [%s]: %w", modelName, err)
+			// 检查是否是删除不存在索引的错误，如果是则忽略（这是 GORM 的已知问题）
+			if isIndexDropError(err) {
+				log.Info("迁移执行成功（忽略索引删除错误）", logger.NewField("model", modelName))
+			} else {
+				return fmt.Errorf("执行迁移失败 [%s]: %w", modelName, err)
+			}
 		}
 
 		// 记录迁移
