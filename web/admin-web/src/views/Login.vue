@@ -34,19 +34,6 @@
           />
         </el-form-item>
         
-        <el-form-item prop="user_type">
-          <el-select
-            v-model="loginForm.user_type"
-            placeholder="请选择用户类型"
-            size="large"
-            style="width: 100%"
-          >
-            <el-option label="管理员" value="admin" />
-            <el-option label="店长" value="store_manager" />
-            <el-option label="美甲师" value="staff" />
-          </el-select>
-        </el-form-item>
-        
         <el-form-item>
           <el-button
             type="primary"
@@ -87,9 +74,6 @@ const loginRules = {
   password: [
     { required: true, message: '请输入密码', trigger: 'blur' },
     { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
-  ],
-  user_type: [
-    { required: true, message: '请选择用户类型', trigger: 'change' }
   ]
 }
 
@@ -101,7 +85,6 @@ const handleLogin = async () => {
     loading.value = true
     
     const success = await userStore.loginAction(loginForm)
-    debugger
     if (success) {
       router.push('/')
     }

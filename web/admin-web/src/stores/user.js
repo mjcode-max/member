@@ -14,6 +14,12 @@ export const useUserStore = defineStore('user', () => {
     try {
       const response = await login(loginForm)
       if (response.code === 200) {
+        // 验证用户角色，后台只允许管理员登录
+        if (response.data.user && response.data.user.role !== 'admin') {
+          ElMessage.error('只有管理员可以登录后台系统')
+          return false
+        }
+        
         token.value = response.data.token
         userInfo.value = response.data.user
         
@@ -28,7 +34,7 @@ export const useUserStore = defineStore('user', () => {
         return false
       }
     } catch (error) {
-      ElMessage.error('登录失败，请检查网络连接')
+      ElMessage.error(error.message || '登录失败，请检查网络连接')
       return false
     }
   }

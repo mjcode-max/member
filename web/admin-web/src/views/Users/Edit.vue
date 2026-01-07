@@ -3,7 +3,7 @@
     <el-card>
       <template #header>
         <div class="card-header">
-          <span>编辑用户</span>
+          <span>编辑员工</span>
           <el-button @click="handleCancel">返回</el-button>
         </div>
       </template>
@@ -41,7 +41,6 @@
             <el-option label="总后台" value="admin" />
             <el-option label="店长" value="store_manager" />
             <el-option label="美甲师" value="technician" />
-            <el-option label="顾客" value="customer" />
           </el-select>
         </el-form-item>
         
@@ -179,8 +178,8 @@ const fetchUserDetail = async () => {
       })
     }
   } catch (error) {
-    console.error('获取用户详情失败:', error)
-    ElMessage.error('获取用户详情失败')
+    console.error('获取员工详情失败:', error)
+    ElMessage.error('获取员工详情失败')
     router.push('/users')
   } finally {
     loading.value = false
@@ -209,11 +208,11 @@ const handleSubmit = async () => {
       }
       
       await updateUser(userId, data)
-      ElMessage.success('更新用户成功')
+      ElMessage.success('更新员工成功')
       router.push('/users')
     } catch (error) {
-      console.error('更新用户失败:', error)
-      ElMessage.error(error.message || '更新用户失败')
+      console.error('更新员工失败:', error)
+      ElMessage.error(error.message || '更新员工失败')
     } finally {
       submitting.value = false
     }

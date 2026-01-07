@@ -100,13 +100,13 @@
             :key="staff.id"
             class="staff-preview-item"
           >
-            <div class="staff-avatar" :class="staff.work_status">
-              {{ staff.name.charAt(0) }}
+            <div class="staff-avatar" :class="getWorkStatusClass(staff.work_status)">
+              {{ (staff.username || staff.name || '').charAt(0) }}
             </div>
             <div class="staff-info">
-              <div class="staff-name">{{ staff.name }}</div>
-              <div class="staff-status" :class="staff.work_status">
-                {{ staff.work_status === 'active' ? '在岗' : '休息' }}
+              <div class="staff-name">{{ staff.username || staff.name || '未知' }}</div>
+              <div class="staff-status" :class="getWorkStatusClass(staff.work_status)">
+                {{ getWorkStatusText(staff.work_status) }}
               </div>
             </div>
           </div>
@@ -182,6 +182,7 @@ import { useRouter } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { getStoreDashboard } from '@/api/dashboard'
 import { getStoreById } from '@/api/stores'
+import { getStaffList } from '@/api/staff'
 import dayjs from 'dayjs'
 
 const router = useRouter()
@@ -211,16 +212,12 @@ const todayData = reactive({
 })
 
 const staffStats = reactive({
-  active: 5,
-  rest: 2,
-  total: 7
+  active: 0,
+  rest: 0,
+  total: 0
 })
 
-const staffList = ref([
-  { id: 1, name: '李师师', work_status: 'active' },
-  { id: 2, name: '张美容', work_status: 'active' },
-  { id: 3, name: '赵美丽', work_status: 'rest' }
-])
+const staffList = ref([])
 
 const recentMembers = ref([
   { 
@@ -305,11 +302,79 @@ const fetchDashboardData = async () => {
   }
 }
 
+// 获取员工列表
+const fetchStaffList = async () => {
+  try {
+    const response = await getStaffList()
+    // 处理分页响应格式
+    if (response && response.data) {
+      let staffData = []
+      if (response.data.list && Array.isArray(response.data.list)) {
+        staffData = response.data.list
+      } else if (Array.isArray(response.data)) {
+        staffData = response.data
+      }
+      
+      // 更新员工列表
+      staffList.value = staffData
+      
+      // 计算统计数据
+      const active = staffData.filter(s => {
+        const status = s.work_status
+        return status === 'working' || status === 'active'
+      }).length
+      const rest = staffData.filter(s => {
+        const status = s.work_status
+        return status === 'rest'
+      }).length
+      
+      staffStats.active = active
+      staffStats.rest = rest
+      staffStats.total = staffData.length
+    } else {
+      staffList.value = []
+      staffStats.active = 0
+      staffStats.rest = 0
+      staffStats.total = 0
+    }
+  } catch (error) {
+    console.error('获取员工列表失败:', error)
+    staffList.value = []
+    staffStats.active = 0
+    staffStats.rest = 0
+    staffStats.total = 0
+  }
+}
+
+// 获取工作状态文本
+const getWorkStatusText = (status) => {
+  if (!status) return '未知'
+  const statusMap = {
+    working: '在岗',
+    rest: '休息',
+    offline: '离岗',
+    active: '在岗' // 兼容旧数据
+  }
+  return statusMap[status] || '未知'
+}
+
+// 获取工作状态样式类
+const getWorkStatusClass = (status) => {
+  if (!status) return 'offline'
+  // 兼容旧数据
+  if (status === 'active') return 'active'
+  if (status === 'working') return 'active'
+  if (status === 'rest') return 'rest'
+  return 'offline'
+}
+
 onMounted(() => {
   // 先获取店铺信息
   fetchStoreInfo()
   // 再获取仪表板数据
   fetchDashboardData()
+  // 获取员工列表
+  fetchStaffList()
 })
 </script>
 
@@ -588,6 +653,10 @@ onMounted(() => {
   &.rest {
     background: linear-gradient(135deg, #faad14, #ffc53d);
   }
+  
+  &.offline {
+    background: linear-gradient(135deg, #999, #bbb);
+  }
 }
 
 .staff-info {
@@ -610,6 +679,10 @@ onMounted(() => {
   
   &.rest {
     color: #faad14;
+  }
+  
+  &.offline {
+    color: #999;
   }
 }
 

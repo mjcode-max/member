@@ -117,6 +117,329 @@ const docTemplate = `{
                 }
             }
         },
+        "/public/stores": {
+            "get": {
+                "description": "获取门店列表（公开接口，无需认证），支持按状态、名称筛选和分页。默认只返回营业中的门店。",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "门店管理"
+                ],
+                "summary": "获取公开门店列表",
+                "parameters": [
+                    {
+                        "enum": [
+                            "operating",
+                            "closed",
+                            "shutdown"
+                        ],
+                        "type": "string",
+                        "default": "operating",
+                        "description": "状态筛选",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "门店名称（模糊搜索）",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页数量",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_pkg_utils.PaginationResponse"
+                        }
+                    }
+                }
+            }
+        },
+        "/stores": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取门店列表，支持按状态、名称筛选和分页",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "门店管理"
+                ],
+                "summary": "获取门店列表",
+                "parameters": [
+                    {
+                        "enum": [
+                            "operating",
+                            "closed",
+                            "shutdown"
+                        ],
+                        "type": "string",
+                        "description": "状态筛选",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "门店名称（模糊搜索）",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页数量",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_pkg_utils.PaginationResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建新门店（仅后台）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "门店管理"
+                ],
+                "summary": "创建门店",
+                "parameters": [
+                    {
+                        "description": "创建门店请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.CreateStoreRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_internal_domain_store.Store"
+                        }
+                    }
+                }
+            }
+        },
+        "/stores/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "根据门店ID获取门店详细信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "门店管理"
+                ],
+                "summary": "获取门店详情",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "门店ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_internal_domain_store.Store"
+                        }
+                    }
+                }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新门店信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "门店管理"
+                ],
+                "summary": "更新门店",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "门店ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新门店请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.UpdateStoreRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_internal_domain_store.Store"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "删除门店（软删除，仅后台）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "门店管理"
+                ],
+                "summary": "删除门店",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "门店ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/stores/{id}/status": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新门店状态（营业中/停业/关闭）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "门店管理"
+                ],
+                "summary": "更新门店状态",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "门店ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新门店状态请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.UpdateStoreStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/stores/{store_id}/users": {
             "get": {
                 "security": [
@@ -167,6 +490,115 @@ const docTemplate = `{
                 }
             }
         },
+        "/users": {
+            "get": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "获取用户列表，支持按角色、状态、门店筛选和分页",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "获取用户列表",
+                "parameters": [
+                    {
+                        "enum": [
+                            "admin",
+                            "store_manager",
+                            "technician",
+                            "customer"
+                        ],
+                        "type": "string",
+                        "description": "角色筛选",
+                        "name": "role",
+                        "in": "query"
+                    },
+                    {
+                        "enum": [
+                            "active",
+                            "inactive"
+                        ],
+                        "type": "string",
+                        "description": "状态筛选",
+                        "name": "status",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "description": "门店ID",
+                        "name": "store_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 1,
+                        "description": "页码",
+                        "name": "page",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "每页数量",
+                        "name": "page_size",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_pkg_utils.PaginationResponse"
+                        }
+                    }
+                }
+            },
+            "post": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "创建新用户（店长、美甲师等）",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "创建用户",
+                "parameters": [
+                    {
+                        "description": "创建用户请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.CreateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_internal_domain_user.User"
+                        }
+                    }
+                }
+            }
+        },
         "/users/{id}": {
             "get": {
                 "security": [
@@ -202,6 +634,99 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "更新用户信息",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "更新用户",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新用户请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.UpdateUserRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/member-pre_internal_domain_user.User"
+                        }
+                    }
+                }
+            }
+        },
+        "/users/{id}/status": {
+            "put": {
+                "security": [
+                    {
+                        "BearerAuth": []
+                    }
+                ],
+                "description": "启用或禁用用户",
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "用户管理"
+                ],
+                "summary": "更新用户状态",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "用户ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "更新用户状态请求",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/internal_interfaces_http_handler.UpdateUserStatusRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
             }
         },
         "/users/{id}/work-status": {
@@ -211,7 +736,7 @@ const docTemplate = `{
                         "BearerAuth": []
                     }
                 ],
-                "description": "更新美甲师的工作状态（在岗/休息/离岗）",
+                "description": "更新美甲师的工作状态（在岗/休息/离岗）。美甲师可以更新自己的状态，店长可以更新自己门店员工的状态，后台可以更新任何美甲师的状态",
                 "consumes": [
                     "application/json"
                 ],
@@ -255,6 +780,195 @@ const docTemplate = `{
         }
     },
     "definitions": {
+        "internal_interfaces_http_handler.CreateStoreRequest": {
+            "type": "object",
+            "required": [
+                "name"
+            ],
+            "properties": {
+                "address": {
+                    "description": "门店地址",
+                    "type": "string"
+                },
+                "business_hours_end": {
+                    "description": "营业结束时间 (HH:MM格式)",
+                    "type": "string"
+                },
+                "business_hours_start": {
+                    "description": "营业开始时间 (HH:MM格式)",
+                    "type": "string"
+                },
+                "contact_person": {
+                    "description": "联系人",
+                    "type": "string"
+                },
+                "deposit_amount": {
+                    "description": "押金金额",
+                    "type": "number"
+                },
+                "name": {
+                    "description": "门店名称",
+                    "type": "string"
+                },
+                "phone": {
+                    "description": "联系电话",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态: operating, closed, shutdown",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_interfaces_http_handler.CreateUserRequest": {
+            "type": "object",
+            "required": [
+                "role"
+            ],
+            "properties": {
+                "email": {
+                    "description": "邮箱",
+                    "type": "string"
+                },
+                "password": {
+                    "description": "密码（员工必填，顾客不需要）",
+                    "type": "string"
+                },
+                "phone": {
+                    "description": "手机号（顾客必填）",
+                    "type": "string"
+                },
+                "role": {
+                    "description": "角色",
+                    "type": "string",
+                    "enum": [
+                        "admin",
+                        "store_manager",
+                        "technician",
+                        "customer"
+                    ]
+                },
+                "status": {
+                    "description": "状态: active, inactive",
+                    "type": "string"
+                },
+                "store_id": {
+                    "description": "门店ID（店长和美甲师必填）",
+                    "type": "integer"
+                },
+                "username": {
+                    "description": "用户名（员工必填，顾客可选）",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_interfaces_http_handler.UpdateStoreRequest": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "description": "门店地址",
+                    "type": "string"
+                },
+                "business_hours_end": {
+                    "description": "营业结束时间",
+                    "type": "string"
+                },
+                "business_hours_start": {
+                    "description": "营业开始时间",
+                    "type": "string"
+                },
+                "contact_person": {
+                    "description": "联系人",
+                    "type": "string"
+                },
+                "deposit_amount": {
+                    "description": "押金金额",
+                    "type": "number"
+                },
+                "name": {
+                    "description": "门店名称",
+                    "type": "string"
+                },
+                "phone": {
+                    "description": "联系电话",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_interfaces_http_handler.UpdateStoreStatusRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "description": "状态",
+                    "type": "string",
+                    "enum": [
+                        "operating",
+                        "closed",
+                        "shutdown"
+                    ]
+                }
+            }
+        },
+        "internal_interfaces_http_handler.UpdateUserRequest": {
+            "type": "object",
+            "properties": {
+                "email": {
+                    "description": "邮箱",
+                    "type": "string"
+                },
+                "password": {
+                    "description": "密码（如果提供则更新）",
+                    "type": "string"
+                },
+                "phone": {
+                    "description": "手机号",
+                    "type": "string"
+                },
+                "role": {
+                    "description": "角色",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态",
+                    "type": "string"
+                },
+                "store_id": {
+                    "description": "门店ID",
+                    "type": "integer"
+                },
+                "username": {
+                    "description": "用户名",
+                    "type": "string"
+                },
+                "work_status": {
+                    "description": "工作状态（美甲师）",
+                    "type": "string"
+                }
+            }
+        },
+        "internal_interfaces_http_handler.UpdateUserStatusRequest": {
+            "type": "object",
+            "required": [
+                "status"
+            ],
+            "properties": {
+                "status": {
+                    "description": "状态",
+                    "type": "string",
+                    "enum": [
+                        "active",
+                        "inactive"
+                    ]
+                }
+            }
+        },
         "internal_interfaces_http_handler.UpdateWorkStatusRequest": {
             "type": "object",
             "required": [
@@ -310,6 +1024,52 @@ const docTemplate = `{
                 }
             }
         },
+        "member-pre_internal_domain_store.Store": {
+            "type": "object",
+            "properties": {
+                "address": {
+                    "description": "门店地址",
+                    "type": "string"
+                },
+                "business_hours_end": {
+                    "description": "营业结束时间 (HH:MM格式)",
+                    "type": "string"
+                },
+                "business_hours_start": {
+                    "description": "营业开始时间 (HH:MM格式)",
+                    "type": "string"
+                },
+                "contact_person": {
+                    "description": "联系人",
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "deposit_amount": {
+                    "description": "押金金额",
+                    "type": "number"
+                },
+                "id": {
+                    "type": "integer"
+                },
+                "name": {
+                    "description": "门店名称",
+                    "type": "string"
+                },
+                "phone": {
+                    "description": "联系电话",
+                    "type": "string"
+                },
+                "status": {
+                    "description": "状态: operating, closed, shutdown",
+                    "type": "string"
+                },
+                "updated_at": {
+                    "type": "string"
+                }
+            }
+        },
         "member-pre_internal_domain_user.User": {
             "type": "object",
             "properties": {
@@ -349,6 +1109,32 @@ const docTemplate = `{
                 "work_status": {
                     "description": "工作状态（仅美甲师有效）: working, rest, offline",
                     "type": "string"
+                }
+            }
+        },
+        "member-pre_pkg_utils.Pagination": {
+            "type": "object",
+            "properties": {
+                "page": {
+                    "type": "integer"
+                },
+                "page_size": {
+                    "type": "integer"
+                },
+                "pages": {
+                    "type": "integer"
+                },
+                "total": {
+                    "type": "integer"
+                }
+            }
+        },
+        "member-pre_pkg_utils.PaginationResponse": {
+            "type": "object",
+            "properties": {
+                "list": {},
+                "pagination": {
+                    "$ref": "#/definitions/member-pre_pkg_utils.Pagination"
                 }
             }
         }

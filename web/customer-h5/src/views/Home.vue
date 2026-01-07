@@ -118,8 +118,8 @@
           <div class="store-info">
             <div class="store-header">
               <h4 class="store-name">{{ store.name }}</h4>
-              <div class="store-status" :class="{ active: store.status === 'active' }">
-                {{ store.status === 'active' ? '营业中' : '已停业' }}
+              <div class="store-status" :class="getStatusClass(store.status)">
+                {{ getStatusText(store.status) }}
               </div>
             </div>
             <p class="store-address">{{ store.address }}</p>
@@ -212,22 +212,24 @@ const allStores = ref([])
 // 获取门店列表
 const fetchStores = async () => {
   try {
-    // 获取所有门店（包括营业中、停业、关闭）
+    // 只获取营业中的门店
     const response = await getStores({
-      status: 'operating', // 获取所有门店
+      status: 'operating',
       page: 1,
       page_size: 100
     })
     // 后端返回格式：{ code: 0, data: { list: [...], pagination: {...} } }
+    let stores = []
     if (response.data?.list) {
-      allStores.value = response.data.list
+      stores = response.data.list
     } else if (Array.isArray(response.data)) {
-      allStores.value = response.data
+      stores = response.data
     } else if (response.data?.stores) {
-      allStores.value = response.data.stores
-    } else {
-      allStores.value = []
+      stores = response.data.stores
     }
+    
+    // 过滤：只显示营业中的门店（双重保险）
+    allStores.value = stores.filter(store => store.status === 'operating')
     
     // 模拟附近门店（取前3个）
     nearbyStores.value = allStores.value.slice(0, 3).map(store => ({
@@ -258,6 +260,25 @@ const handleContact = () => {
 // 处理定位
 const handleLocation = () => {
   showToast('定位功能开发中...')
+}
+
+// 获取门店状态文本
+const getStatusText = (status) => {
+  const statusMap = {
+    operating: '营业中',
+    closed: '停业',
+    shutdown: '已关闭'
+  }
+  return statusMap[status] || '未知'
+}
+
+// 获取门店状态样式类
+const getStatusClass = (status) => {
+  return {
+    'status-operating': status === 'operating',
+    'status-closed': status === 'closed',
+    'status-shutdown': status === 'shutdown'
+  }
 }
 
 onMounted(() => {
@@ -569,9 +590,19 @@ onMounted(() => {
   background: #f5f5f5;
   color: #999;
   
-  &.active {
+  &.status-operating {
     background: #e8f5e8;
     color: #52c41a;
+  }
+  
+  &.status-closed {
+    background: #fff7e6;
+    color: #fa8c16;
+  }
+  
+  &.status-shutdown {
+    background: #fff1f0;
+    color: #ff4d4f;
   }
 }
 

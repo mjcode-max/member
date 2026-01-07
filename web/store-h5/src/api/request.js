@@ -1,5 +1,5 @@
 import axios from 'axios'
-import { showSuccessToast, showFailToast } from 'vant'
+// import { showSuccessToast, showFailToast } from 'vant'
 import { useUserStore } from '@/stores/user'
 
 // 创建axios实例
@@ -56,8 +56,8 @@ request.interceptors.response.use(
       showFailToast(data.message || '权限不足')
       return Promise.reject(new Error(data.message || '权限不足'))
     } else {
-      // 其他错误，显示错误消息
-      showFailToast(data.message || '请求失败')
+      // 其他错误，不显示 Toast，只记录日志
+      console.error('请求失败:', data.message || '请求失败')
       return Promise.reject(new Error(data.message || '请求失败'))
     }
   },
@@ -70,7 +70,8 @@ request.interceptors.response.use(
       
       switch (status) {
         case 401:
-          showFailToast(errorMessage || '认证失败，请重新登录')
+          // 认证失败，清除用户信息并跳转到登录页，不显示 Toast
+          console.error('认证失败:', errorMessage || '认证失败，请重新登录')
           const userStore = useUserStore()
           userStore.logoutAction()
           // 延迟跳转，避免页面闪烁
@@ -83,18 +84,18 @@ request.interceptors.response.use(
           showFailToast(errorMessage || '权限不足')
           break
         case 404:
-          showFailToast(errorMessage || '请求的资源不存在')
+          console.error('请求的资源不存在:', errorMessage || '请求的资源不存在')
           break
         case 500:
-          showFailToast(errorMessage || '服务器内部错误')
+          console.error('服务器内部错误:', errorMessage || '服务器内部错误')
           break
         default:
-          showFailToast(errorMessage || '请求失败')
+          console.error('请求失败:', errorMessage || '请求失败')
       }
     } else if (error.code === 'ECONNABORTED') {
-      showFailToast('请求超时')
+      console.error('请求超时')
     } else {
-      showFailToast('网络错误')
+      console.error('网络错误')
     }
     
     return Promise.reject(error)
