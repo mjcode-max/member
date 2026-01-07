@@ -61,6 +61,7 @@ func (UserModel) TableName() string {
 type CustomerOpenIDModel struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	OpenID    string    `gorm:"uniqueIndex;size:100;not null" json:"openid"` // 微信OpenID
+	Phone     string    `gorm:"size:20" json:"phone"`                        // 手机号
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -378,27 +379,31 @@ func (r *UserRepository) FindByStoreID(ctx context.Context, storeID uint, role s
 	return users, nil
 }
 
-// SaveCustomerOpenID 保存顾客微信OpenID
-func (r *UserRepository) SaveCustomerOpenID(ctx context.Context, openID string) error {
-	r.logger.Info("保存顾客微信OpenID",
+// SaveCustomerOpenID 保存顾客微信OpenID和手机号
+func (r *UserRepository) SaveCustomerOpenID(ctx context.Context, openID, phone string) error {
+	r.logger.Info("保存顾客微信OpenID和手机号",
 		logger.NewField("openid", openID),
+		logger.NewField("phone", phone),
 	)
 
 	// 检查是否已存在
 	var existing CustomerOpenIDModel
 	err := r.db.DB().WithContext(ctx).Where("open_id = ?", openID).First(&existing).Error
 	if err == nil {
-		// 已存在，更新更新时间
+		// 已存在，更新手机号和更新时间
+		existing.Phone = phone
 		existing.UpdatedAt = time.Now()
 		if err := r.db.DB().WithContext(ctx).Save(&existing).Error; err != nil {
 			r.logger.Error("更新顾客OpenID失败",
 				logger.NewField("openid", openID),
+				logger.NewField("phone", phone),
 				logger.NewField("error", err.Error()),
 			)
 			return errors.ErrDatabase(err)
 		}
 		r.logger.Info("更新顾客OpenID成功",
 			logger.NewField("openid", openID),
+			logger.NewField("phone", phone),
 		)
 		return nil
 	}
@@ -414,6 +419,7 @@ func (r *UserRepository) SaveCustomerOpenID(ctx context.Context, openID string) 
 	// 不存在则创建
 	model := &CustomerOpenIDModel{
 		OpenID:    openID,
+		Phone:     phone,
 		CreatedAt: time.Now(),
 		UpdatedAt: time.Now(),
 	}
@@ -421,6 +427,7 @@ func (r *UserRepository) SaveCustomerOpenID(ctx context.Context, openID string) 
 	if err := r.db.DB().WithContext(ctx).Create(model).Error; err != nil {
 		r.logger.Error("保存顾客OpenID失败",
 			logger.NewField("openid", openID),
+			logger.NewField("phone", phone),
 			logger.NewField("error", err.Error()),
 		)
 		return errors.ErrDatabase(err)
@@ -428,6 +435,7 @@ func (r *UserRepository) SaveCustomerOpenID(ctx context.Context, openID string) 
 
 	r.logger.Info("保存顾客OpenID成功",
 		logger.NewField("openid", openID),
+		logger.NewField("phone", phone),
 		logger.NewField("id", model.ID),
 	)
 	return nil

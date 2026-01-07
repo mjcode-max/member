@@ -63,8 +63,8 @@ type IUserRepository interface {
 	UpdateWorkStatus(ctx context.Context, userID uint, workStatus string) error
 	// FindByStoreID 根据门店ID查找用户（店长和美甲师）
 	FindByStoreID(ctx context.Context, storeID uint, role string) ([]*User, error)
-	// SaveCustomerOpenID 保存顾客微信OpenID
-	SaveCustomerOpenID(ctx context.Context, openID string) error
+	// SaveCustomerOpenID 保存顾客微信OpenID和手机号
+	SaveCustomerOpenID(ctx context.Context, openID, phone string) error
 }
 
 // 领域错误定义
@@ -437,20 +437,30 @@ func (s *UserService) GetByStoreID(ctx context.Context, storeID uint, role strin
 	return users, nil
 }
 
-// SaveCustomerOpenID 保存顾客微信OpenID
-func (s *UserService) SaveCustomerOpenID(ctx context.Context, openID string) error {
-	s.logger.Info("保存顾客微信OpenID", logger.NewField("openid", openID))
+// SaveCustomerOpenID 保存顾客微信OpenID和手机号
+func (s *UserService) SaveCustomerOpenID(ctx context.Context, openID, phone string) error {
+	s.logger.Info("保存顾客微信OpenID和手机号",
+		logger.NewField("openid", openID),
+		logger.NewField("phone", phone),
+	)
 
 	if openID == "" {
 		return errors.ErrInvalidParams("OpenID不能为空")
 	}
 
-	if err := s.repo.SaveCustomerOpenID(ctx, openID); err != nil {
-		s.logger.Error("保存顾客OpenID失败", logger.NewField("openid", openID), logger.NewField("error", err.Error()))
+	if err := s.repo.SaveCustomerOpenID(ctx, openID, phone); err != nil {
+		s.logger.Error("保存顾客OpenID失败",
+			logger.NewField("openid", openID),
+			logger.NewField("phone", phone),
+			logger.NewField("error", err.Error()),
+		)
 		return err
 	}
 
-	s.logger.Info("保存顾客OpenID成功", logger.NewField("openid", openID))
+	s.logger.Info("保存顾客OpenID成功",
+		logger.NewField("openid", openID),
+		logger.NewField("phone", phone),
+	)
 	return nil
 }
 

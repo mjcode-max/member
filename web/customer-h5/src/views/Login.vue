@@ -49,11 +49,12 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { wechatLoginByCode } from '@/api/auth'
-import { showToast, showDialog } from 'vant'
-import { isWechatBrowser, redirectToWechatAuth } from '@/utils/wechat'
+import { showToast, showDialog, showInputDialog } from 'vant'
+import { isWechatBrowser, redirectToWechatAuth, getPhoneNumberBySDK } from '@/utils/wechat'
 
 const router = useRouter()
 const loading = ref(false)
+const phoneInput = ref('')
 
 // 微信登录完整流程
 const handleWechatLogin = async () => {
@@ -70,7 +71,43 @@ const handleWechatLogin = async () => {
   const code = urlParams.get('code')
   
   if (code) {
-    // 有code，调用后端接口通过code换取openid并保存
+    // 有code，尝试获取手机号
+    let phone = ''
+    
+    // 尝试通过JS-SDK获取手机号
+    try {
+      const phoneResult = await getPhoneNumberBySDK()
+      phone = phoneResult.phone || ''
+    } catch (error) {
+      console.warn('通过JS-SDK获取手机号失败:', error)
+    }
+    
+    // 如果无法获取手机号，提示用户输入
+    if (!phone) {
+      try {
+        const result = await showInputDialog({
+          title: '请输入手机号',
+          message: '为了更好的服务体验，请输入您的手机号',
+          placeholder: '请输入11位手机号',
+          validator: (value) => {
+            const phoneRegex = /^1[3-9]\d{9}$/
+            if (!value) {
+              return '请输入手机号'
+            }
+            if (!phoneRegex.test(value)) {
+              return '请输入正确的手机号'
+            }
+            return true
+          }
+        })
+        phone = result.value
+      } catch (error) {
+        // 用户取消输入，仍然可以登录（手机号为空）
+        console.log('用户取消输入手机号')
+      }
+    }
+    
+    // 调用后端接口通过code换取openid和手机号并保存
     loading.value = true
     showToast.loading({
       message: '正在登录...',
@@ -79,7 +116,7 @@ const handleWechatLogin = async () => {
     })
     
     try {
-      const response = await wechatLoginByCode(code)
+      const response = await wechatLoginByCode(code, phone)
       if (response.code === 200) {
         showToast.success('登录成功')
         // 清除URL参数，跳转到首页
@@ -102,7 +139,16 @@ const handleWechatLogin = async () => {
     redirectToWechatAuth()
   } catch (error) {
     console.error('跳转微信授权失败:', error)
-    showToast(error.message || '跳转微信授权失败')
+    // 如果是开发环境的内网地址错误，显示更详细的提示
+    if (error.message && error.message.includes('内网地址')) {
+      showDialog({
+        title: '开发环境配置提示',
+        message: error.message + '\n\n详细说明请查看控制台',
+        confirmButtonText: '我知道了'
+      })
+    } else {
+      showToast(error.message || '跳转微信授权失败')
+    }
   }
 }
 
