@@ -16,6 +16,7 @@ type Config struct {
 	Auth      AuthConfig      `mapstructure:"auth"`
 	Admin     AdminConfig     `mapstructure:"admin"`
 	HuaweiFRS HuaweiFRSConfig `mapstructure:"huawei_frs"`
+	Wechat    WechatConfig    `mapstructure:"wechat"`
 }
 
 // ServerConfig 服务器配置
@@ -84,6 +85,12 @@ type HuaweiFRSConfig struct {
 	AccessKeyID     string `mapstructure:"access_key_id"`
 	SecretAccessKey string `mapstructure:"secret_access_key"`
 	FaceSetName     string `mapstructure:"face_set_name"`
+}
+
+// WechatConfig 微信配置
+type WechatConfig struct {
+	AppID     string `mapstructure:"app_id"`     // 微信AppID
+	AppSecret string `mapstructure:"app_secret"` // 微信AppSecret
 }
 
 func (cfg *Config) GetJwtSecret() string {

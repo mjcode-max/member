@@ -48,70 +48,61 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useUserStore } from '@/stores/user'
-import { wechatLogin, getWechatConfig } from '@/api/auth'
+import { wechatLoginByCode } from '@/api/auth'
 import { showToast, showDialog } from 'vant'
-import { isWechatBrowser, getWechatCode, initWechatSDK } from '@/utils/wechat'
+import { isWechatBrowser, redirectToWechatAuth } from '@/utils/wechat'
 
 const router = useRouter()
-const userStore = useUserStore()
-
 const loading = ref(false)
 
-// 微信登录
+// 微信登录完整流程
 const handleWechatLogin = async () => {
   if (loading.value) return
   
-  loading.value = true
-  
-  try {
-    // 检查是否在微信环境中
-    if (!isWechatBrowser()) {
-      showToast('请在微信中打开此页面')
-      return
-    }
-
-    // 获取微信授权码
-    const code = await getWechatCode()
-    if (!code) {
-      showToast('获取微信授权失败')
-      return
-    }
-
-    // 调用后端登录接口
-    const response = await wechatLogin(code)
-    if (response.code === 200) {
-      // 保存用户信息
-      userStore.setUserInfo(response.data.user)
-      
-      showToast.success('登录成功')
-      
-      // 跳转到首页
-      router.push('/')
-    } else {
-      showToast(response.message || '登录失败')
-    }
-  } catch (error) {
-    console.error('微信登录失败:', error)
-    showToast('登录失败，请重试')
-  } finally {
-    loading.value = false
+  // 检查是否在微信环境中
+  if (!isWechatBrowser()) {
+    showToast('请在微信中打开此页面')
+    return
   }
-}
 
-
-// 初始化微信JS-SDK
-const initWechatSDKConfig = async () => {
-  try {
-    const url = window.location.href.split('#')[0]
-    const response = await getWechatConfig(url)
+  // 检查URL中是否有code（微信授权回调）
+  const urlParams = new URLSearchParams(window.location.search)
+  const code = urlParams.get('code')
+  
+  if (code) {
+    // 有code，调用后端接口通过code换取openid并保存
+    loading.value = true
+    showToast.loading({
+      message: '正在登录...',
+      forbidClick: true,
+      duration: 0
+    })
     
-    if (response.code === 200) {
-      const config = response.data
-      await initWechatSDK(config)
+    try {
+      const response = await wechatLoginByCode(code)
+      if (response.code === 200) {
+        showToast.success('登录成功')
+        // 清除URL参数，跳转到首页
+        window.history.replaceState({}, '', window.location.pathname)
+        router.push('/')
+      } else {
+        showToast(response.message || '登录失败')
+      }
+    } catch (error) {
+      console.error('登录失败:', error)
+      showToast('登录失败，请重试')
+    } finally {
+      loading.value = false
     }
+    return
+  }
+
+  // 没有code，跳转到微信授权页面
+  try {
+    redirectToWechatAuth()
   } catch (error) {
-    console.error('获取微信配置失败:', error)
+    console.error('跳转微信授权失败:', error)
+    showToast(error.message || '跳转微信授权失败')
   }
 }
 
@@ -133,9 +124,13 @@ const showUserAgreement = () => {
   })
 }
 
+// 页面加载时，如果URL中有code，自动触发登录
 onMounted(() => {
-  // 初始化微信JS-SDK
-  initWechatSDKConfig()
+  const urlParams = new URLSearchParams(window.location.search)
+  const code = urlParams.get('code')
+  if (code && isWechatBrowser()) {
+    handleWechatLogin()
+  }
 })
 </script>
 

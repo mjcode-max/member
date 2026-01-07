@@ -100,6 +100,9 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 	{
 		// 获取公开门店列表（供客户使用，默认只返回营业中的门店）
 		publicGroup.GET("/stores", r.storeHandler.GetPublicStoreList)
+
+		// 通过微信code换取openid并保存（公开接口，无需认证）
+		publicGroup.POST("/customer/wechat/login", r.userHandler.WechatLoginByCode)
 	}
 
 	// ==================== 门店管理相关路由 ====================

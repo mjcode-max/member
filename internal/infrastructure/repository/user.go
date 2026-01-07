@@ -14,6 +14,12 @@ import (
 
 var _ user.IUserRepository = (*UserRepository)(nil)
 
+// 在包初始化时注册模型，确保迁移时能检测到
+func init() {
+	persistence.Register(&UserModel{})
+	persistence.Register(&CustomerOpenIDModel{})
+}
+
 // UserRepository 用户仓储实现
 type UserRepository struct {
 	db     database.Database
@@ -23,7 +29,6 @@ type UserRepository struct {
 
 // NewUserRepository 创建用户仓储实例
 func NewUserRepository(db database.Database, rdb *persistence.Client, log logger.Logger) *UserRepository {
-	persistence.Register(&UserModel{})
 	return &UserRepository{
 		db:     db,
 		redis:  rdb,
@@ -50,6 +55,19 @@ type UserModel struct {
 // TableName 指定表名
 func (UserModel) TableName() string {
 	return "users"
+}
+
+// CustomerOpenIDModel 顾客微信OpenID数据库模型
+type CustomerOpenIDModel struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	OpenID    string    `gorm:"uniqueIndex;size:100;not null" json:"openid"` // 微信OpenID
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// TableName 指定表名
+func (CustomerOpenIDModel) TableName() string {
+	return "customer_openids"
 }
 
 // ToEntity 转换为领域实体
@@ -358,4 +376,59 @@ func (r *UserRepository) FindByStoreID(ctx context.Context, storeID uint, role s
 	)
 
 	return users, nil
+}
+
+// SaveCustomerOpenID 保存顾客微信OpenID
+func (r *UserRepository) SaveCustomerOpenID(ctx context.Context, openID string) error {
+	r.logger.Info("保存顾客微信OpenID",
+		logger.NewField("openid", openID),
+	)
+
+	// 检查是否已存在
+	var existing CustomerOpenIDModel
+	err := r.db.DB().WithContext(ctx).Where("open_id = ?", openID).First(&existing).Error
+	if err == nil {
+		// 已存在，更新更新时间
+		existing.UpdatedAt = time.Now()
+		if err := r.db.DB().WithContext(ctx).Save(&existing).Error; err != nil {
+			r.logger.Error("更新顾客OpenID失败",
+				logger.NewField("openid", openID),
+				logger.NewField("error", err.Error()),
+			)
+			return errors.ErrDatabase(err)
+		}
+		r.logger.Info("更新顾客OpenID成功",
+			logger.NewField("openid", openID),
+		)
+		return nil
+	}
+
+	if err != gorm.ErrRecordNotFound {
+		r.logger.Error("查询顾客OpenID失败",
+			logger.NewField("openid", openID),
+			logger.NewField("error", err.Error()),
+		)
+		return errors.ErrDatabase(err)
+	}
+
+	// 不存在则创建
+	model := &CustomerOpenIDModel{
+		OpenID:    openID,
+		CreatedAt: time.Now(),
+		UpdatedAt: time.Now(),
+	}
+
+	if err := r.db.DB().WithContext(ctx).Create(model).Error; err != nil {
+		r.logger.Error("保存顾客OpenID失败",
+			logger.NewField("openid", openID),
+			logger.NewField("error", err.Error()),
+		)
+		return errors.ErrDatabase(err)
+	}
+
+	r.logger.Info("保存顾客OpenID成功",
+		logger.NewField("openid", openID),
+		logger.NewField("id", model.ID),
+	)
+	return nil
 }

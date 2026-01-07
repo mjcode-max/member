@@ -54,3 +54,8 @@ huawei_frs:
   secret_access_key: VdcjLXOnoFZrj0gs1SCXLpr0WOcHQ8W3D3ldMFT9  # 已提供
   face_set_name: member_faces  # 人脸库名称，需要先在华为云控制台创建
 
+# 微信公众平台配置
+wechat:
+  app_id: wx5c0484314f35d6d4  # 微信AppID，需要从微信公众平台获取
+  app_secret: 8378ced08369ceabca102f9f9abff3a4  # 微信AppSecret，需要从微信公众平台获取
+
