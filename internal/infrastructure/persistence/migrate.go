@@ -52,7 +52,14 @@ func Up(db *gorm.DB, log logger.Logger, cfg *config.Config) error {
 		}
 
 		if executed {
-			log.Info("迁移已执行，跳过", logger.NewField("model", modelName))
+			// 即使迁移已执行，也执行 AutoMigrate 来更新表结构（添加新字段等）
+			log.Info("迁移已执行，执行 AutoMigrate 更新表结构", logger.NewField("model", modelName))
+			if err := db.AutoMigrate(model); err != nil {
+				log.Warn("AutoMigrate 更新表结构失败", logger.NewField("model", modelName), logger.NewField("error", err.Error()))
+				// 不返回错误，继续执行其他迁移
+			} else {
+				log.Info("AutoMigrate 更新表结构成功", logger.NewField("model", modelName))
+			}
 			continue
 		}
 

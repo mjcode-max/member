@@ -46,3 +46,11 @@ admin:
   username: admin # 管理员用户名
   password: admin123 # 管理员密码（生产环境请修改）
 
+# 华为云FRS人脸识别服务配置
+huawei_frs:
+  endpoint: https://face-api.cn-north-4.myhuaweicloud.com  # 需要从华为云控制台获取，根据区域选择
+  project_id: your_project_id  # 需要从华为云控制台获取项目ID
+  access_key_id: HPUAPIZXPZPUVMHGIAHK  # 已提供
+  secret_access_key: VdcjLXOnoFZrj0gs1SCXLpr0WOcHQ8W3D3ldMFT9  # 已提供
+  face_set_name: member_faces  # 人脸库名称，需要先在华为云控制台创建
+
