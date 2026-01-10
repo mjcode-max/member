@@ -1,5 +1,16 @@
 basePath: /api/v1
 definitions:
+  internal_interfaces_http_handler.BookSlotRequest:
+    properties:
+      count:
+        minimum: 1
+        type: integer
+      slot_id:
+        type: integer
+    required:
+    - count
+    - slot_id
+    type: object
   internal_interfaces_http_handler.CreateStoreRequest:
     properties:
       address:
@@ -28,6 +39,23 @@ definitions:
         type: string
     required:
     - name
+    type: object
+  internal_interfaces_http_handler.CreateTemplateRequest:
+    properties:
+      name:
+        type: string
+      status:
+        type: string
+      store_id:
+        type: integer
+      weekday_rules:
+        items:
+          $ref: '#/definitions/member-pre_internal_domain_slot.WeekdayRule'
+        type: array
+    required:
+    - name
+    - store_id
+    - weekday_rules
     type: object
   internal_interfaces_http_handler.CreateUserRequest:
     properties:
@@ -59,6 +87,70 @@ definitions:
         type: string
     required:
     - role
+    type: object
+  internal_interfaces_http_handler.GenerateSlotsRequest:
+    properties:
+      end_date:
+        type: string
+      start_date:
+        type: string
+      store_id:
+        type: integer
+      technician_count:
+        minimum: 1
+        type: integer
+    required:
+    - end_date
+    - start_date
+    - store_id
+    - technician_count
+    type: object
+  internal_interfaces_http_handler.LockSlotRequest:
+    properties:
+      count:
+        minimum: 1
+        type: integer
+      slot_id:
+        type: integer
+    required:
+    - count
+    - slot_id
+    type: object
+  internal_interfaces_http_handler.RecalculateCapacityRequest:
+    properties:
+      from_date:
+        type: string
+      store_id:
+        type: integer
+      technician_count:
+        minimum: 0
+        type: integer
+    required:
+    - from_date
+    - store_id
+    - technician_count
+    type: object
+  internal_interfaces_http_handler.ReleaseSlotRequest:
+    properties:
+      count:
+        minimum: 1
+        type: integer
+      slot_id:
+        type: integer
+    required:
+    - count
+    - slot_id
+    type: object
+  internal_interfaces_http_handler.UnlockSlotRequest:
+    properties:
+      count:
+        minimum: 1
+        type: integer
+      slot_id:
+        type: integer
+    required:
+    - count
+    - slot_id
     type: object
   internal_interfaces_http_handler.UpdateStoreRequest:
     properties:
@@ -98,6 +190,17 @@ definitions:
         type: string
     required:
     - status
+    type: object
+  internal_interfaces_http_handler.UpdateTemplateRequest:
+    properties:
+      name:
+        type: string
+      status:
+        type: string
+      weekday_rules:
+        items:
+          $ref: '#/definitions/member-pre_internal_domain_slot.WeekdayRule'
+        type: array
     type: object
   internal_interfaces_http_handler.UpdateUserRequest:
     properties:
@@ -173,6 +276,88 @@ definitions:
         type: string
       user:
         $ref: '#/definitions/member-pre_internal_domain_user.User'
+    type: object
+  member-pre_internal_domain_slot.Slot:
+    properties:
+      booked_count:
+        description: 已预约数量
+        type: integer
+      capacity:
+        description: 可用容量（在岗美甲师数量）
+        type: integer
+      created_at:
+        type: string
+      date:
+        description: 日期
+        type: string
+      end_time:
+        description: 结束时间
+        type: string
+      id:
+        type: integer
+      locked_count:
+        description: 已锁定数量
+        type: integer
+      start_time:
+        description: 开始时间
+        type: string
+      status:
+        description: '状态: available, locked, booked, completed, cancelled'
+        type: string
+      store_id:
+        description: 门店ID
+        type: integer
+      technician_id:
+        description: 美甲师ID（可选，如果为空表示任意美甲师）
+        type: integer
+      updated_at:
+        type: string
+    type: object
+  member-pre_internal_domain_slot.Template:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      name:
+        description: 模板名称
+        type: string
+      status:
+        description: '状态: active, inactive'
+        type: string
+      store_id:
+        description: 门店ID
+        type: integer
+      updated_at:
+        type: string
+      weekday_rules:
+        description: 星期规则列表
+        items:
+          $ref: '#/definitions/member-pre_internal_domain_slot.WeekdayRule'
+        type: array
+    type: object
+  member-pre_internal_domain_slot.TimeSlotRule:
+    properties:
+      duration:
+        description: 时段时长（分钟）
+        type: integer
+      end_time:
+        description: 结束时间 (HH:MM格式)
+        type: string
+      start_time:
+        description: 开始时间 (HH:MM格式)
+        type: string
+    type: object
+  member-pre_internal_domain_slot.WeekdayRule:
+    properties:
+      slots:
+        description: 该天的时段列表
+        items:
+          $ref: '#/definitions/member-pre_internal_domain_slot.TimeSlotRule'
+        type: array
+      weekday:
+        description: 星期几 (0=周日, 1=周一, ..., 6=周六)
+        type: integer
     type: object
   member-pre_internal_domain_store.Store:
     properties:
@@ -365,6 +550,368 @@ paths:
       summary: 获取公开门店列表
       tags:
       - 门店管理
+  /slot-templates:
+    get:
+      consumes:
+      - application/json
+      description: 根据门店ID获取时段模板列表
+      parameters:
+      - description: 门店ID
+        in: query
+        name: store_id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/member-pre_internal_domain_slot.Template'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 获取时段模板列表
+      tags:
+      - 时段管理
+    post:
+      consumes:
+      - application/json
+      description: 创建新的时段模板
+      parameters:
+      - description: 创建时段模板请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.CreateTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_internal_domain_slot.Template'
+      security:
+      - BearerAuth: []
+      summary: 创建时段模板
+      tags:
+      - 时段管理
+  /slot-templates/{id}:
+    delete:
+      consumes:
+      - application/json
+      description: 删除时段模板
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 删除时段模板
+      tags:
+      - 时段管理
+    get:
+      consumes:
+      - application/json
+      description: 根据模板ID获取时段模板详细信息
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_internal_domain_slot.Template'
+      security:
+      - BearerAuth: []
+      summary: 获取时段模板详情
+      tags:
+      - 时段管理
+    put:
+      consumes:
+      - application/json
+      description: 更新时段模板信息
+      parameters:
+      - description: 模板ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: 更新时段模板请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.UpdateTemplateRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_internal_domain_slot.Template'
+      security:
+      - BearerAuth: []
+      summary: 更新时段模板
+      tags:
+      - 时段管理
+  /slots:
+    get:
+      consumes:
+      - application/json
+      description: 根据门店ID和日期获取时段列表
+      parameters:
+      - description: 门店ID
+        in: query
+        name: store_id
+        required: true
+        type: integer
+      - description: 日期 (YYYY-MM-DD格式)
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/member-pre_internal_domain_slot.Slot'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 获取时段列表
+      tags:
+      - 时段管理
+  /slots/{id}:
+    get:
+      consumes:
+      - application/json
+      description: 根据时段ID获取时段详细信息
+      parameters:
+      - description: 时段ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/member-pre_internal_domain_slot.Slot'
+      security:
+      - BearerAuth: []
+      summary: 获取时段详情
+      tags:
+      - 时段管理
+  /slots/available:
+    get:
+      consumes:
+      - application/json
+      description: 根据门店ID和日期获取可用时段列表
+      parameters:
+      - description: 门店ID
+        in: query
+        name: store_id
+        required: true
+        type: integer
+      - description: 日期 (YYYY-MM-DD格式)
+        in: query
+        name: date
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/member-pre_internal_domain_slot.Slot'
+            type: array
+      security:
+      - BearerAuth: []
+      summary: 获取可用时段列表
+      tags:
+      - 时段管理
+  /slots/book:
+    post:
+      consumes:
+      - application/json
+      description: 预约时段（从锁定转为已预约，原子操作）
+      parameters:
+      - description: 预约时段请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.BookSlotRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 预约时段
+      tags:
+      - 时段管理
+  /slots/generate:
+    post:
+      consumes:
+      - application/json
+      description: 根据模板生成时段
+      parameters:
+      - description: 生成时段请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.GenerateSlotsRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 生成时段
+      tags:
+      - 时段管理
+  /slots/lock:
+    post:
+      consumes:
+      - application/json
+      description: 锁定时段（预约时调用，原子操作）
+      parameters:
+      - description: 锁定时段请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.LockSlotRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 锁定时段
+      tags:
+      - 时段管理
+  /slots/recalculate-capacity:
+    post:
+      consumes:
+      - application/json
+      description: 重新计算时段容量（当美甲师状态变更时调用）
+      parameters:
+      - description: 重新计算容量请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.RecalculateCapacityRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 重新计算时段容量
+      tags:
+      - 时段管理
+  /slots/release:
+    post:
+      consumes:
+      - application/json
+      description: 释放时段（取消或完成时调用，原子操作）
+      parameters:
+      - description: 释放时段请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.ReleaseSlotRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 释放时段
+      tags:
+      - 时段管理
+  /slots/unlock:
+    post:
+      consumes:
+      - application/json
+      description: 解锁时段（取消预约时调用，原子操作）
+      parameters:
+      - description: 解锁时段请求
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/internal_interfaces_http_handler.UnlockSlotRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      security:
+      - BearerAuth: []
+      summary: 解锁时段
+      tags:
+      - 时段管理
   /stores:
     get:
       consumes:

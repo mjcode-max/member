@@ -56,8 +56,8 @@ link:
 package: clean deps wire swagger link test
 	@echo "开始打包..."
 	@mkdir -p build/bin build/configs build/dist
-	@echo "构建后端二进制..."
-	@go build -ldflags="-s -w" -o build/bin/server ./cmd
+	@echo "构建后端二进制 (linux/amd64)..."
+	@GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build/bin/server ./cmd
 	@echo "复制配置文件..."
 	@cp -r configs/* build/configs/
 	@echo "复制文档和脚本..."
@@ -73,7 +73,7 @@ package: clean deps wire swagger link test
 	@echo "  构建 store-h5..."
 	@cd web/store-h5 && npm install && npm run build && cp -r dist ../../build/dist/store-h5 || (echo "  store-h5 构建失败，跳过" && true)
 	@echo "压缩打包文件..."
-	@tar -czf build.tar.gz -C build .
+	@tar --no-xattrs -czvf build.tar.gz -C build .
 	@echo "打包完成！"
 	@echo "  输出目录: build/"
 	@echo "  压缩包: build.tar.gz"
