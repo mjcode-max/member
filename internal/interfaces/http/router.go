@@ -12,19 +12,14 @@ import (
 // appRouteRegistrar 应用路由注册器
 // 所有HTTP路由必须在此注册器中定义
 type appRouteRegistrar struct {
-	authHandler        *handler.AuthHandler
-	userHandler        *handler.UserHandler
-	storeHandler       *handler.StoreHandler
-	templateHandler    *handler.SlotTemplateHandler
-	slotHandler        *handler.SlotHandler
-	authService        *auth.AuthService
-	logger             logger.Logger
-	authHandler   *handler.AuthHandler
-	userHandler   *handler.UserHandler
-	storeHandler  *handler.StoreHandler
-	memberHandler *handler.MemberHandler
-	authService   *auth.AuthService
-	logger        logger.Logger
+	authHandler     *handler.AuthHandler
+	userHandler     *handler.UserHandler
+	storeHandler    *handler.StoreHandler
+	templateHandler *handler.SlotTemplateHandler
+	slotHandler     *handler.SlotHandler
+	memberHandler   *handler.MemberHandler
+	authService     *auth.AuthService
+	logger          logger.Logger
 }
 
 // RegisterRoutes 注册所有应用路由
@@ -200,6 +195,9 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 
 			// 重新计算时段容量（后台、店长）
 			slotsProtected.POST("/recalculate-capacity", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.slotHandler.RecalculateCapacity)
+		}
+	}
+
 	// ==================== 会员管理相关路由 ====================
 	membersGroup := api.Group("/members")
 	{
@@ -269,16 +267,11 @@ func NewAppRouteRegistrar(
 	return &appRouteRegistrar{
 		authHandler:     authHandler,
 		userHandler:     userHandler,
-		storeHandler:   storeHandler,
+		storeHandler:    storeHandler,
 		templateHandler: templateHandler,
-		slotHandler:    slotHandler,
-		authService:    authService,
-		logger:         log,
-		authHandler:   authHandler,
-		userHandler:   userHandler,
-		storeHandler:  storeHandler,
-		memberHandler: memberHandler,
-		authService:   authService,
-		logger:        log,
+		slotHandler:     slotHandler,
+		memberHandler:   memberHandler,
+		authService:     authService,
+		logger:          log,
 	}
 }
