@@ -21,25 +21,16 @@ type UserHandler struct {
 	service     *user.UserService
 	slotService *slot.SlotService
 	logger      logger.Logger
+	config      *config.Config
 }
 
 // NewUserHandler 创建用户处理器
-func NewUserHandler(service *user.UserService, slotService *slot.SlotService, log logger.Logger) *UserHandler {
+func NewUserHandler(service *user.UserService, slotService *slot.SlotService, log logger.Logger, cfg *config.Config) *UserHandler {
 	return &UserHandler{
 		service:     service,
 		slotService: slotService,
 		logger:      log,
-	service *user.UserService
-	logger  logger.Logger
-	config  *config.Config
-}
-
-// NewUserHandler 创建用户处理器
-func NewUserHandler(service *user.UserService, log logger.Logger, cfg *config.Config) *UserHandler {
-	return &UserHandler{
-		service: service,
-		logger:  log,
-		config:  cfg,
+		config:      cfg,
 	}
 }
 
