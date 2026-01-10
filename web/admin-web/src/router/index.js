@@ -74,12 +74,6 @@ const routes = [
         meta: { title: '使用记录', hidden: true }
       },
       {
-        path: 'staff',
-        name: 'Staff',
-        component: () => import('@/views/Staff/index.vue'),
-        meta: { title: '员工管理', icon: 'Avatar' }
-      },
-      {
         path: 'users',
         name: 'Users',
         component: () => import('@/views/Users/index.vue'),
@@ -110,10 +104,22 @@ const routes = [
         meta: { title: '报表中心', icon: 'DataAnalysis' }
       },
       {
-        path: 'system',
-        name: 'System',
-        component: () => import('@/views/System/index.vue'),
-        meta: { title: '系统设置', icon: 'Setting' }
+        path: 'templates',
+        name: 'Templates',
+        component: () => import('@/views/Templates/index.vue'),
+        meta: { title: '时段模板', icon: 'Clock' }
+      },
+      {
+        path: 'templates/create',
+        name: 'TemplateCreate',
+        component: () => import('@/views/Templates/Form.vue'),
+        meta: { title: '创建时段模板', hidden: true }
+      },
+      {
+        path: 'templates/:id/edit',
+        name: 'TemplateEdit',
+        component: () => import('@/views/Templates/Form.vue'),
+        meta: { title: '编辑时段模板', hidden: true }
       },
       {
         path: 'profile',

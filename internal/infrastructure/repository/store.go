@@ -14,6 +14,11 @@ import (
 
 var _ store.IStoreRepository = (*StoreRepository)(nil)
 
+// 在包初始化时注册模型，确保迁移时能检测到
+func init() {
+	persistence.Register(&StoreModel{})
+}
+
 // StoreRepository 门店仓储实现
 type StoreRepository struct {
 	db     database.Database
@@ -23,7 +28,6 @@ type StoreRepository struct {
 
 // NewStoreRepository 创建门店仓储实例
 func NewStoreRepository(db database.Database, rdb *persistence.Client, log logger.Logger) *StoreRepository {
-	persistence.Register(&StoreModel{})
 	return &StoreRepository{
 		db:     db,
 		redis:  rdb,
@@ -33,18 +37,19 @@ func NewStoreRepository(db database.Database, rdb *persistence.Client, log logge
 
 // StoreModel 门店数据库模型
 type StoreModel struct {
-	ID                uint           `gorm:"primaryKey" json:"id"`
-	Name              string         `gorm:"size:100;not null" json:"name"`
-	Address           string         `gorm:"size:255" json:"address"`
-	Phone             string         `gorm:"size:20" json:"phone"`
-	ContactPerson     string         `gorm:"size:50" json:"contact_person"`
-	Status            string         `gorm:"size:20;default:'operating';not null" json:"status"`
-	BusinessHoursStart string        `gorm:"size:10" json:"business_hours_start"`
-	BusinessHoursEnd   string        `gorm:"size:10" json:"business_hours_end"`
-	DepositAmount     float64        `gorm:"type:decimal(10,2);default:0" json:"deposit_amount"`
-	CreatedAt         time.Time      `json:"created_at"`
-	UpdatedAt         time.Time      `json:"updated_at"`
-	DeletedAt         gorm.DeletedAt `gorm:"index" json:"-"`
+	ID                 uint           `gorm:"primaryKey" json:"id"`
+	Name               string         `gorm:"size:100;not null" json:"name"`
+	Address            string         `gorm:"size:255" json:"address"`
+	Phone              string         `gorm:"size:20" json:"phone"`
+	ContactPerson      string         `gorm:"size:50" json:"contact_person"`
+	Status             string         `gorm:"size:20;default:'operating';not null" json:"status"`
+	BusinessHoursStart string         `gorm:"size:10" json:"business_hours_start"`
+	BusinessHoursEnd   string         `gorm:"size:10" json:"business_hours_end"`
+	DepositAmount      float64        `gorm:"type:decimal(10,2);default:0" json:"deposit_amount"`
+	TemplateID         *uint          `gorm:"index;default:NULL" json:"template_id"`
+	CreatedAt          time.Time      `json:"created_at"`
+	UpdatedAt          time.Time      `json:"updated_at"`
+	DeletedAt          gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // TableName 指定表名
@@ -58,17 +63,18 @@ func (m *StoreModel) ToEntity() *store.Store {
 		return nil
 	}
 	return &store.Store{
-		ID:                m.ID,
-		Name:              m.Name,
-		Address:           m.Address,
-		Phone:             m.Phone,
-		ContactPerson:     m.ContactPerson,
-		Status:            m.Status,
+		ID:                 m.ID,
+		Name:               m.Name,
+		Address:            m.Address,
+		Phone:              m.Phone,
+		ContactPerson:      m.ContactPerson,
+		Status:             m.Status,
 		BusinessHoursStart: m.BusinessHoursStart,
 		BusinessHoursEnd:   m.BusinessHoursEnd,
-		DepositAmount:     m.DepositAmount,
-		CreatedAt:         m.CreatedAt,
-		UpdatedAt:         m.UpdatedAt,
+		DepositAmount:      m.DepositAmount,
+		TemplateID:         m.TemplateID,
+		CreatedAt:          m.CreatedAt,
+		UpdatedAt:          m.UpdatedAt,
 	}
 }
 
@@ -86,6 +92,7 @@ func (m *StoreModel) FromEntity(s *store.Store) {
 	m.BusinessHoursStart = s.BusinessHoursStart
 	m.BusinessHoursEnd = s.BusinessHoursEnd
 	m.DepositAmount = s.DepositAmount
+	m.TemplateID = s.TemplateID
 	m.CreatedAt = s.CreatedAt
 	m.UpdatedAt = s.UpdatedAt
 }
@@ -311,4 +318,3 @@ func (r *StoreRepository) FindByStatus(ctx context.Context, status string) ([]*s
 
 	return stores, nil
 }
-

@@ -98,6 +98,36 @@
           </el-col>
         </el-row>
         
+        <el-form-item label="时段模板" prop="template_id">
+          <el-select
+            v-model="form.template_id"
+            placeholder="请选择时段模板（可选）"
+            clearable
+            filterable
+            style="width: 100%"
+            :loading="loadingTemplates"
+          >
+            <el-option
+              v-for="template in templates"
+              :key="template.id"
+              :label="template.name"
+              :value="template.id"
+            >
+              <span>{{ template.name }}</span>
+              <el-tag
+                :type="template.status === 'active' ? 'success' : 'info'"
+                size="small"
+                style="margin-left: 8px"
+              >
+                {{ template.status === 'active' ? '启用' : '禁用' }}
+              </el-tag>
+            </el-option>
+          </el-select>
+          <div style="color: #909399; font-size: 12px; margin-top: 4px">
+            选择时段模板后，系统将根据模板自动生成可预约时段
+          </div>
+        </el-form-item>
+        
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
             <el-radio value="operating">营业中</el-radio>
@@ -118,15 +148,19 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { createStore } from '@/api/stores'
+import { getTemplates } from '@/api/templates'
 
 const router = useRouter()
+const route = useRoute()
 
 const formRef = ref()
 const loading = ref(false)
+const loadingTemplates = ref(false)
+const templates = ref([])
 
 const form = reactive({
   name: '',
@@ -136,7 +170,8 @@ const form = reactive({
   business_hours_start: '09:00',
   business_hours_end: '21:00',
   status: 'operating',
-  deposit_amount: 0
+  deposit_amount: 0,
+  template_id: null
 })
 
 const rules = {
@@ -177,10 +212,39 @@ const handleSubmit = async () => {
   }
 }
 
+// 获取时段模板列表
+// 注意：创建门店时，模板需要先创建，所以这里可以获取所有模板
+// 或者留空，让用户创建门店后再编辑选择模板
+const fetchTemplates = async () => {
+  loadingTemplates.value = true
+  try {
+    // 尝试获取所有模板（如果后端支持不传store_id）
+    // 如果不支持，则留空，用户可以在创建门店后编辑选择模板
+    try {
+      const response = await getTemplates({})
+      if (response.data) {
+        templates.value = Array.isArray(response.data) ? response.data : []
+      }
+    } catch (error) {
+      // 如果获取失败，留空，不显示错误（模板是可选的）
+      templates.value = []
+    }
+  } catch (error) {
+    console.error('获取时段模板列表失败:', error)
+    templates.value = []
+  } finally {
+    loadingTemplates.value = false
+  }
+}
+
 // 返回
 const goBack = () => {
   router.push('/stores')
 }
+
+onMounted(() => {
+  fetchTemplates()
+})
 </script>
 
 <style lang="scss" scoped>

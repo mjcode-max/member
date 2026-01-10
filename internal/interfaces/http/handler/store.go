@@ -261,14 +261,15 @@ func (h *StoreHandler) CreateStore(c *gin.Context) {
 
 	// 转换为领域实体
 	newStore := &store.Store{
-		Name:              req.Name,
-		Address:           req.Address,
-		Phone:             req.Phone,
-		ContactPerson:     req.ContactPerson,
-		Status:            req.Status,
+		Name:               req.Name,
+		Address:            req.Address,
+		Phone:              req.Phone,
+		ContactPerson:      req.ContactPerson,
+		Status:             req.Status,
 		BusinessHoursStart: req.BusinessHoursStart,
 		BusinessHoursEnd:   req.BusinessHoursEnd,
-		DepositAmount:     req.DepositAmount,
+		DepositAmount:      req.DepositAmount,
+		TemplateID:         req.TemplateID,
 	}
 
 	ctx := c.Request.Context()
@@ -364,15 +365,16 @@ func (h *StoreHandler) UpdateStore(c *gin.Context) {
 
 	// 转换为领域实体
 	updateStore := &store.Store{
-		ID:                uint(id),
-		Name:              req.Name,
-		Address:           req.Address,
-		Phone:             req.Phone,
-		ContactPerson:     req.ContactPerson,
-		Status:            req.Status,
+		ID:                 uint(id),
+		Name:               req.Name,
+		Address:            req.Address,
+		Phone:              req.Phone,
+		ContactPerson:      req.ContactPerson,
+		Status:             req.Status,
 		BusinessHoursStart: req.BusinessHoursStart,
 		BusinessHoursEnd:   req.BusinessHoursEnd,
-		DepositAmount:     req.DepositAmount,
+		DepositAmount:      req.DepositAmount,
+		TemplateID:         req.TemplateID,
 	}
 
 	ctx := c.Request.Context()
@@ -510,30 +512,31 @@ func (h *StoreHandler) UpdateStoreStatus(c *gin.Context) {
 
 // CreateStoreRequest 创建门店请求
 type CreateStoreRequest struct {
-	Name              string  `json:"name" binding:"required"`                    // 门店名称
-	Address           string  `json:"address"`                                   // 门店地址
-	Phone             string  `json:"phone"`                                     // 联系电话
-	ContactPerson     string  `json:"contact_person"`                            // 联系人
-	Status            string  `json:"status"`                                     // 状态: operating, closed, shutdown
-	BusinessHoursStart string `json:"business_hours_start"`                       // 营业开始时间 (HH:MM格式)
-	BusinessHoursEnd   string `json:"business_hours_end"`                         // 营业结束时间 (HH:MM格式)
-	DepositAmount     float64 `json:"deposit_amount"`                            // 押金金额
+	Name               string  `json:"name" binding:"required"` // 门店名称
+	Address            string  `json:"address"`                 // 门店地址
+	Phone              string  `json:"phone"`                   // 联系电话
+	ContactPerson      string  `json:"contact_person"`          // 联系人
+	Status             string  `json:"status"`                  // 状态: operating, closed, shutdown
+	BusinessHoursStart string  `json:"business_hours_start"`    // 营业开始时间 (HH:MM格式)
+	BusinessHoursEnd   string  `json:"business_hours_end"`      // 营业结束时间 (HH:MM格式)
+	DepositAmount      float64 `json:"deposit_amount"`          // 押金金额
+	TemplateID         *uint   `json:"template_id"`             // 时段模板ID（可选）
 }
 
 // UpdateStoreRequest 更新门店请求
 type UpdateStoreRequest struct {
-	Name              string  `json:"name"`                // 门店名称
-	Address           string  `json:"address"`             // 门店地址
-	Phone             string  `json:"phone"`               // 联系电话
-	ContactPerson     string  `json:"contact_person"`      // 联系人
-	Status            string  `json:"status"`              // 状态
-	BusinessHoursStart string `json:"business_hours_start"` // 营业开始时间
-	BusinessHoursEnd   string `json:"business_hours_end"`   // 营业结束时间
-	DepositAmount     float64 `json:"deposit_amount"`      // 押金金额
+	Name               string  `json:"name"`                 // 门店名称
+	Address            string  `json:"address"`              // 门店地址
+	Phone              string  `json:"phone"`                // 联系电话
+	ContactPerson      string  `json:"contact_person"`       // 联系人
+	Status             string  `json:"status"`               // 状态
+	BusinessHoursStart string  `json:"business_hours_start"` // 营业开始时间
+	BusinessHoursEnd   string  `json:"business_hours_end"`   // 营业结束时间
+	DepositAmount      float64 `json:"deposit_amount"`       // 押金金额
+	TemplateID         *uint   `json:"template_id"`          // 时段模板ID（可选）
 }
 
 // UpdateStoreStatusRequest 更新门店状态请求
 type UpdateStoreStatusRequest struct {
 	Status string `json:"status" binding:"required,oneof=operating closed shutdown"` // 状态
 }
-

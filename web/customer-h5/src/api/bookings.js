@@ -3,7 +3,7 @@ import request from './request'
 // 获取预约可用时间段
 export const getAvailableSlots = (params) => {
   return request({
-    url: '/customer/bookings/available-slots',
+    url: '/slots/available',
     method: 'get',
     params
   })

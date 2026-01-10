@@ -17,6 +17,12 @@ import (
 var _ slot.ITemplateRepository = (*TemplateRepository)(nil)
 var _ slot.ISlotRepository = (*SlotRepository)(nil)
 
+// 在包初始化时注册模型，确保迁移时能检测到
+func init() {
+	persistence.Register(&TemplateModel{})
+	persistence.Register(&SlotModel{})
+}
+
 // ==================== 时段模板仓储 ====================
 
 // TemplateRepository 时段模板仓储实现
@@ -28,7 +34,6 @@ type TemplateRepository struct {
 
 // NewTemplateRepository 创建时段模板仓储实例
 func NewTemplateRepository(db database.Database, rdb *persistence.Client, log logger.Logger) *TemplateRepository {
-	persistence.Register(&TemplateModel{})
 	return &TemplateRepository{
 		db:     db,
 		redis:  rdb,
@@ -36,39 +41,38 @@ func NewTemplateRepository(db database.Database, rdb *persistence.Client, log lo
 	}
 }
 
-// WeekdayRuleJSON 星期规则JSON类型（用于数据库存储）
-type WeekdayRuleJSON []slot.WeekdayRule
+// TimeSlotRuleJSON 时间段规则JSON类型（用于数据库存储）
+type TimeSlotRuleJSON []slot.TimeSlotRule
 
 // Value 实现driver.Valuer接口
-func (w WeekdayRuleJSON) Value() (driver.Value, error) {
-	if len(w) == 0 {
+func (t TimeSlotRuleJSON) Value() (driver.Value, error) {
+	if len(t) == 0 {
 		return "[]", nil
 	}
-	return json.Marshal(w)
+	return json.Marshal(t)
 }
 
 // Scan 实现sql.Scanner接口
-func (w *WeekdayRuleJSON) Scan(value interface{}) error {
+func (t *TimeSlotRuleJSON) Scan(value interface{}) error {
 	if value == nil {
-		*w = WeekdayRuleJSON{}
+		*t = TimeSlotRuleJSON{}
 		return nil
 	}
 	bytes, ok := value.([]byte)
 	if !ok {
-		return errors.ErrInvalidParams("无法扫描WeekdayRuleJSON")
+		return errors.ErrInvalidParams("无法扫描TimeSlotRuleJSON")
 	}
-	return json.Unmarshal(bytes, w)
+	return json.Unmarshal(bytes, t)
 }
 
 // TemplateModel 时段模板数据库模型
 type TemplateModel struct {
-	ID           uint            `gorm:"primaryKey" json:"id"`
-	StoreID      uint            `gorm:"index;not null" json:"store_id"`
-	Name         string          `gorm:"size:100;not null" json:"name"`
-	Status       string          `gorm:"size:20;default:'active';not null" json:"status"`
-	WeekdayRules WeekdayRuleJSON `gorm:"type:json" json:"weekday_rules"`
-	CreatedAt    time.Time       `json:"created_at"`
-	UpdatedAt    time.Time       `json:"updated_at"`
+	ID        uint             `gorm:"primaryKey" json:"id"`
+	Name      string           `gorm:"size:100;not null" json:"name"`
+	Status    string           `gorm:"size:20;default:'active';not null" json:"status"`
+	TimeSlots TimeSlotRuleJSON `gorm:"column:time_slots;type:json" json:"time_slots"`
+	CreatedAt time.Time        `json:"created_at"`
+	UpdatedAt time.Time        `json:"updated_at"`
 }
 
 // TableName 指定表名
@@ -82,13 +86,12 @@ func (m *TemplateModel) ToEntity() *slot.Template {
 		return nil
 	}
 	return &slot.Template{
-		ID:           m.ID,
-		StoreID:      m.StoreID,
-		Name:         m.Name,
-		Status:       m.Status,
-		WeekdayRules: []slot.WeekdayRule(m.WeekdayRules),
-		CreatedAt:    m.CreatedAt,
-		UpdatedAt:    m.UpdatedAt,
+		ID:        m.ID,
+		Name:      m.Name,
+		Status:    m.Status,
+		TimeSlots: []slot.TimeSlotRule(m.TimeSlots),
+		CreatedAt: m.CreatedAt,
+		UpdatedAt: m.UpdatedAt,
 	}
 }
 
@@ -98,10 +101,9 @@ func (m *TemplateModel) FromEntity(t *slot.Template) {
 		return
 	}
 	m.ID = t.ID
-	m.StoreID = t.StoreID
 	m.Name = t.Name
 	m.Status = t.Status
-	m.WeekdayRules = WeekdayRuleJSON(t.WeekdayRules)
+	m.TimeSlots = TimeSlotRuleJSON(t.TimeSlots)
 	m.CreatedAt = t.CreatedAt
 	m.UpdatedAt = t.UpdatedAt
 }
@@ -126,14 +128,13 @@ func (r *TemplateRepository) FindByID(ctx context.Context, id uint) (*slot.Templ
 	return model.ToEntity(), nil
 }
 
-// FindByStoreID 根据门店ID查找模板列表
-func (r *TemplateRepository) FindByStoreID(ctx context.Context, storeID uint) ([]*slot.Template, error) {
-	r.logger.Debug("查找时段模板列表：根据门店ID", logger.NewField("store_id", storeID))
+// FindAll 查找所有模板列表
+func (r *TemplateRepository) FindAll(ctx context.Context) ([]*slot.Template, error) {
+	r.logger.Debug("查找所有时段模板列表")
 
 	var models []TemplateModel
-	if err := r.db.DB().WithContext(ctx).Where("store_id = ?", storeID).Find(&models).Error; err != nil {
-		r.logger.Error("查找时段模板列表失败：根据门店ID",
-			logger.NewField("store_id", storeID),
+	if err := r.db.DB().WithContext(ctx).Find(&models).Error; err != nil {
+		r.logger.Error("查找所有时段模板列表失败",
 			logger.NewField("error", err.Error()),
 		)
 		return nil, errors.ErrDatabase(err)
@@ -147,32 +148,30 @@ func (r *TemplateRepository) FindByStoreID(ctx context.Context, storeID uint) ([
 	return templates, nil
 }
 
-// FindActiveByStoreID 根据门店ID查找启用的模板
-func (r *TemplateRepository) FindActiveByStoreID(ctx context.Context, storeID uint) (*slot.Template, error) {
-	r.logger.Debug("查找启用的时段模板：根据门店ID", logger.NewField("store_id", storeID))
+// FindByStatus 根据状态查找模板列表
+func (r *TemplateRepository) FindByStatus(ctx context.Context, status string) ([]*slot.Template, error) {
+	r.logger.Debug("查找时段模板列表：根据状态", logger.NewField("status", status))
 
-	var model TemplateModel
-	if err := r.db.DB().WithContext(ctx).
-		Where("store_id = ? AND status = ?", storeID, slot.TemplateStatusActive).
-		First(&model).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			r.logger.Debug("门店没有启用的时段模板", logger.NewField("store_id", storeID))
-			return nil, nil
-		}
-		r.logger.Error("查找启用的时段模板失败：根据门店ID",
-			logger.NewField("store_id", storeID),
+	var models []TemplateModel
+	if err := r.db.DB().WithContext(ctx).Where("status = ?", status).Find(&models).Error; err != nil {
+		r.logger.Error("查找时段模板列表失败：根据状态",
+			logger.NewField("status", status),
 			logger.NewField("error", err.Error()),
 		)
 		return nil, errors.ErrDatabase(err)
 	}
 
-	return model.ToEntity(), nil
+	templates := make([]*slot.Template, 0, len(models))
+	for _, model := range models {
+		templates = append(templates, model.ToEntity())
+	}
+
+	return templates, nil
 }
 
 // Create 创建模板
 func (r *TemplateRepository) Create(ctx context.Context, t *slot.Template) error {
 	r.logger.Info("创建时段模板",
-		logger.NewField("store_id", t.StoreID),
 		logger.NewField("name", t.Name),
 	)
 
@@ -183,7 +182,7 @@ func (r *TemplateRepository) Create(ctx context.Context, t *slot.Template) error
 
 	if err := r.db.DB().WithContext(ctx).Create(model).Error; err != nil {
 		r.logger.Error("创建时段模板失败",
-			logger.NewField("store_id", t.StoreID),
+			logger.NewField("template_id", model.ID),
 			logger.NewField("error", err.Error()),
 		)
 		return errors.ErrDatabase(err)
@@ -250,7 +249,6 @@ type SlotRepository struct {
 
 // NewSlotRepository 创建时段仓储实例
 func NewSlotRepository(db database.Database, rdb *persistence.Client, log logger.Logger) *SlotRepository {
-	persistence.Register(&SlotModel{})
 	return &SlotRepository{
 		db:     db,
 		redis:  rdb,
@@ -692,6 +690,23 @@ func (r *SlotRepository) DeleteByTechnicianIDAndFuture(ctx context.Context, tech
 	return nil
 }
 
+// DeleteByIDs 批量删除时段
+func (r *SlotRepository) DeleteByIDs(ctx context.Context, ids []uint) error {
+	if len(ids) == 0 {
+		return nil
+	}
+
+	r.logger.Info("批量删除时段", logger.NewField("count", len(ids)))
+
+	if err := r.db.DB().WithContext(ctx).Where("id IN ?", ids).Delete(&SlotModel{}).Error; err != nil {
+		r.logger.Error("批量删除时段失败", logger.NewField("error", err.Error()))
+		return errors.ErrDatabase(err)
+	}
+
+	r.logger.Info("批量删除时段成功", logger.NewField("count", len(ids)))
+	return nil
+}
+
 // FindByTechnicianIDAndDateRange 根据美甲师ID和日期范围查找时段列表
 func (r *SlotRepository) FindByTechnicianIDAndDateRange(ctx context.Context, technicianID uint, startDate, endDate time.Time) ([]*slot.Slot, error) {
 	r.logger.Debug("查找时段列表：根据美甲师ID和日期范围",
@@ -719,4 +734,3 @@ func (r *SlotRepository) FindByTechnicianIDAndDateRange(ctx context.Context, tec
 
 	return slots, nil
 }
-

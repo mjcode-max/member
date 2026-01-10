@@ -25,6 +25,10 @@ migrate-down:
 migrate-status:
 	go run ./cmd migrate status
 
+
+sync-slots:
+	go run ./cmd sync-slots
+
 # 下载依赖
 deps:
 	go mod download
