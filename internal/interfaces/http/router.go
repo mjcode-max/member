@@ -12,14 +12,15 @@ import (
 // appRouteRegistrar 应用路由注册器
 // 所有HTTP路由必须在此注册器中定义
 type appRouteRegistrar struct {
-	authHandler     *handler.AuthHandler
-	userHandler     *handler.UserHandler
-	storeHandler    *handler.StoreHandler
-	templateHandler *handler.SlotTemplateHandler
-	slotHandler     *handler.SlotHandler
-	memberHandler   *handler.MemberHandler
-	authService     *auth.AuthService
-	logger          logger.Logger
+	authHandler       *handler.AuthHandler
+	userHandler       *handler.UserHandler
+	storeHandler      *handler.StoreHandler
+	templateHandler   *handler.SlotTemplateHandler
+	slotHandler       *handler.SlotHandler
+	memberHandler     *handler.MemberHandler
+	appointmentHandler *handler.AppointmentHandler
+	authService       *auth.AuthService
+	logger            logger.Logger
 }
 
 // RegisterRoutes 注册所有应用路由
@@ -251,6 +252,48 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 			usagesProtected.DELETE("/:id", httpInfra.RoleMiddleware(user.RoleAdmin), r.memberHandler.DeleteUsage)
 		}
 	}
+
+	// ==================== 预约管理相关路由 ====================
+	appointmentsGroup := api.Group("/appointments")
+	{
+		// 需要认证的路由组
+		appointmentsProtected := appointmentsGroup.Group("")
+		appointmentsProtected.Use(httpInfra.AuthMiddleware(r.authService, r.logger))
+		{
+			// 获取我的预约列表
+			appointmentsProtected.GET("/my", r.appointmentHandler.GetMyAppointments)
+
+			// 获取我即将到来的预约
+			appointmentsProtected.GET("/my/upcoming", r.appointmentHandler.GetMyUpcomingAppointments)
+
+			// 获取预约详情
+			appointmentsProtected.GET("/:id", r.appointmentHandler.GetAppointment)
+
+			// 创建预约
+			appointmentsProtected.POST("", r.appointmentHandler.CreateAppointment)
+
+			// 支付押金
+			appointmentsProtected.POST("/pay-deposit", r.appointmentHandler.PayDeposit)
+
+			// 美甲师确认到店
+			appointmentsProtected.POST("/confirm-arrival", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.appointmentHandler.ConfirmArrival)
+
+			// 完成预约
+			appointmentsProtected.POST("/complete", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.appointmentHandler.Complete)
+
+			// 顾客取消预约（需提前3小时）
+			appointmentsProtected.POST("/cancel/customer", r.appointmentHandler.CancelByCustomer)
+
+			// 美甲师取消预约（随时可以取消）
+			appointmentsProtected.POST("/cancel/technician", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.appointmentHandler.CancelByTechnician)
+
+			// 获取门店预约列表（后台、店长、美甲师）
+			appointmentsProtected.GET("/store", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.appointmentHandler.GetStoreAppointments)
+
+			// 获取美甲师预约列表
+			appointmentsProtected.GET("/technician", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.appointmentHandler.GetTechnicianAppointments)
+		}
+	}
 }
 
 // NewAppRouteRegistrar 创建应用路由注册器
@@ -261,17 +304,19 @@ func NewAppRouteRegistrar(
 	templateHandler *handler.SlotTemplateHandler,
 	slotHandler *handler.SlotHandler,
 	memberHandler *handler.MemberHandler,
+	appointmentHandler *handler.AppointmentHandler,
 	authService *auth.AuthService,
 	log logger.Logger,
 ) httpInfra.RouteRegistrar {
 	return &appRouteRegistrar{
-		authHandler:     authHandler,
-		userHandler:     userHandler,
-		storeHandler:    storeHandler,
-		templateHandler: templateHandler,
-		slotHandler:     slotHandler,
-		memberHandler:   memberHandler,
-		authService:     authService,
-		logger:          log,
+		authHandler:        authHandler,
+		userHandler:        userHandler,
+		storeHandler:       storeHandler,
+		templateHandler:    templateHandler,
+		slotHandler:        slotHandler,
+		memberHandler:      memberHandler,
+		appointmentHandler: appointmentHandler,
+		authService:        authService,
+		logger:             log,
 	}
 }

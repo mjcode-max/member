@@ -1,17 +1,17 @@
 import request from './request'
 
 /**
- * 美甲师端预约相关API
+ * 门店端预约相关API
  */
 
 /**
  * 预约管理
  */
 
-// 获取美甲师的预约列表
-export const getTechnicianAppointments = (params) => {
+// 获取门店预约列表
+export const getStoreAppointments = (params) => {
   return request({
-    url: '/appointments/technician',
+    url: '/appointments/store',
     method: 'get',
     params
   })
@@ -47,7 +47,7 @@ export const completeAppointment = (appointmentId) => {
   })
 }
 
-// 美甲师取消预约（随时可以取消）
+// 美甲师取消预约
 export const cancelAppointmentByTechnician = (appointmentId, reason = '') => {
   return request({
     url: '/appointments/cancel/technician',
@@ -56,6 +56,51 @@ export const cancelAppointmentByTechnician = (appointmentId, reason = '') => {
       appointment_id: appointmentId,
       reason
     }
+  })
+}
+
+// 根据日期范围获取预约
+export const getAppointmentsByDateRange = (startDate, endDate) => {
+  return request({
+    url: '/appointments/store',
+    method: 'get',
+    params: {
+      start_date: startDate,
+      end_date: endDate
+    }
+  })
+}
+
+/**
+ * 美甲师管理
+ */
+
+// 获取美甲师列表
+export const getTechnicians = (params) => {
+  return request({
+    url: '/users',
+    method: 'get',
+    params: {
+      ...params,
+      role: 'technician'
+    }
+  })
+}
+
+// 获取美甲师详情
+export const getTechnicianById = (id) => {
+  return request({
+    url: `/users/${id}`,
+    method: 'get'
+  })
+}
+
+// 更新美甲师工作状态
+export const updateTechnicianWorkStatus = (id, workStatus) => {
+  return request({
+    url: `/users/${id}/work-status`,
+    method: 'put',
+    data: { work_status: workStatus }
   })
 }
 
@@ -72,12 +117,21 @@ export const getAvailableSlots = (params) => {
   })
 }
 
-// 获取门店的预约列表
-export const getStoreAppointments = (params) => {
+// 获取所有时段列表
+export const getSlots = (params) => {
   return request({
-    url: '/appointments/store',
+    url: '/slots',
     method: 'get',
     params
+  })
+}
+
+// 生成时段
+export const generateSlots = (data) => {
+  return request({
+    url: '/slots/generate',
+    method: 'post',
+    data
   })
 }
 
@@ -85,19 +139,20 @@ export const getStoreAppointments = (params) => {
  * 门店管理
  */
 
-// 获取门店列表
-export const getStores = () => {
+// 获取当前门店信息
+export const getCurrentStore = () => {
   return request({
-    url: '/stores',
+    url: '/stores/my',
     method: 'get'
   })
 }
 
-// 获取门店详情
-export const getStoreById = (id) => {
+// 更新门店信息
+export const updateStore = (id, data) => {
   return request({
     url: `/stores/${id}`,
-    method: 'get'
+    method: 'put',
+    data
   })
 }
 
@@ -129,3 +184,22 @@ export const getMemberByPhone = (phone) => {
     method: 'get'
   })
 }
+
+// 创建会员
+export const createMember = (data) => {
+  return request({
+    url: '/members',
+    method: 'post',
+    data
+  })
+}
+
+// 更新会员信息
+export const updateMember = (id, data) => {
+  return request({
+    url: `/members/${id}`,
+    method: 'put',
+    data
+  })
+}
+
