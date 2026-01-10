@@ -42,49 +42,44 @@ func Up(db *gorm.DB, log logger.Logger, cfg *config.Config) error {
 		return fmt.Errorf("创建迁移记录表失败: %w", err)
 	}
 
+	// 首先，对所有模型执行 AutoMigrate，确保表结构和字段都是最新的
+	// 这样可以检测并添加新字段，即使迁移记录已存在
+	log.Info("执行 AutoMigrate 更新所有表结构")
+	for _, model := range models {
+		modelName := getModelName(model)
+		log.Debug("执行 AutoMigrate", logger.NewField("model", modelName))
+
+		if err := db.AutoMigrate(model); err != nil {
+			// 检查是否是删除不存在索引的错误，如果是则忽略（这是 GORM 的已知问题）
+			if isIndexDropError(err) {
+				log.Info("AutoMigrate 更新表结构成功（忽略索引删除错误）", logger.NewField("model", modelName))
+			} else {
+				log.Warn("AutoMigrate 更新表结构失败", logger.NewField("model", modelName), logger.NewField("error", err.Error()))
+				// 不返回错误，继续执行其他迁移
+			}
+		} else {
+			log.Debug("AutoMigrate 更新表结构成功", logger.NewField("model", modelName))
+		}
+	}
+
+	// 然后，检查并记录首次迁移
 	for _, model := range models {
 		modelName := getModelName(model)
 
-		// 检查是否已执行
+		// 检查是否已记录首次迁移
 		executed, err := isMigrationExecuted(db, modelName)
 		if err != nil {
 			return fmt.Errorf("检查迁移状态失败: %w", err)
 		}
 
-		if executed {
-			// 即使迁移已执行，也执行 AutoMigrate 来更新表结构（添加新字段等）
-			log.Info("迁移已执行，执行 AutoMigrate 更新表结构", logger.NewField("model", modelName))
-			if err := db.AutoMigrate(model); err != nil {
-				// 检查是否是删除不存在索引的错误，如果是则忽略（这是 GORM 的已知问题）
-				if isIndexDropError(err) {
-					log.Info("AutoMigrate 更新表结构成功（忽略索引删除错误）", logger.NewField("model", modelName))
-				} else {
-					log.Warn("AutoMigrate 更新表结构失败", logger.NewField("model", modelName), logger.NewField("error", err.Error()))
-					// 不返回错误，继续执行其他迁移
-				}
-			} else {
-				log.Info("AutoMigrate 更新表结构成功", logger.NewField("model", modelName))
+		if !executed {
+			// 首次迁移，记录迁移记录
+			log.Info("记录首次迁移", logger.NewField("model", modelName))
+			if err := recordMigration(db, modelName); err != nil {
+				return fmt.Errorf("记录迁移失败: %w", err)
 			}
-			continue
+			log.Info("首次迁移记录成功", logger.NewField("model", modelName))
 		}
-
-		// 执行迁移（使用 GORM 的 AutoMigrate）
-		log.Info("开始执行迁移", logger.NewField("model", modelName))
-		if err := db.AutoMigrate(model); err != nil {
-			// 检查是否是删除不存在索引的错误，如果是则忽略（这是 GORM 的已知问题）
-			if isIndexDropError(err) {
-				log.Info("迁移执行成功（忽略索引删除错误）", logger.NewField("model", modelName))
-			} else {
-				return fmt.Errorf("执行迁移失败 [%s]: %w", modelName, err)
-			}
-		}
-
-		// 记录迁移
-		if err := recordMigration(db, modelName); err != nil {
-			return fmt.Errorf("记录迁移失败: %w", err)
-		}
-
-		log.Info("迁移执行成功", logger.NewField("model", modelName))
 	}
 
 	// 迁移完成后，初始化默认 admin 账户

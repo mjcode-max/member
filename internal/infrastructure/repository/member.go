@@ -15,6 +15,12 @@ import (
 var _ member.IMemberRepository = (*MemberRepository)(nil)
 var _ member.IUsageRepository = (*UsageRepository)(nil)
 
+// 在包初始化时注册模型，确保迁移时能检测到
+func init() {
+	persistence.Register(&MemberModel{})
+	persistence.Register(&UsageModel{})
+}
+
 // MemberRepository 会员仓储实现
 type MemberRepository struct {
 	db     database.Database
@@ -24,7 +30,6 @@ type MemberRepository struct {
 
 // NewMemberRepository 创建会员仓储实例
 func NewMemberRepository(db database.Database, rdb *persistence.Client, log logger.Logger) *MemberRepository {
-	persistence.Register(&MemberModel{})
 	return &MemberRepository{
 		db:     db,
 		redis:  rdb,
@@ -34,26 +39,26 @@ func NewMemberRepository(db database.Database, rdb *persistence.Client, log logg
 
 // MemberModel 会员数据库模型（包含套餐信息）
 type MemberModel struct {
-	ID              uint           `gorm:"primaryKey" json:"id"`
-	Name            string         `gorm:"size:100;not null" json:"name"`
-	Phone           string         `gorm:"size:20;index" json:"phone"`
-	PackageName     string         `gorm:"size:100" json:"package_name"`
-	ServiceType     string         `gorm:"size:20" json:"service_type"`
-	Price           float64        `gorm:"type:decimal(10,2);default:0" json:"price"`
-	UsedTimes       int            `gorm:"default:0" json:"used_times"`
-	ValidityDuration int           `gorm:"default:0" json:"validity_duration"`
-	ValidFrom       time.Time      `gorm:"type:date" json:"valid_from"`
-	ValidTo         time.Time      `gorm:"type:date" json:"valid_to"`
-	StoreID         uint           `gorm:"index" json:"store_id"`
-	PurchaseAmount  float64        `gorm:"type:decimal(10,2);default:0" json:"purchase_amount"`
-	PurchaseTime    time.Time      `json:"purchase_time"`
-	Status          string         `gorm:"size:20;default:'active';not null" json:"status"`
-	Description     string         `gorm:"type:text" json:"description"`
-	FaceID          string         `gorm:"size:255" json:"face_id"` // 华为云人脸ID
-	CreatedBy       uint           `gorm:"index" json:"created_by"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
-	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
+	ID               uint           `gorm:"primaryKey" json:"id"`
+	Name             string         `gorm:"size:100;not null" json:"name"`
+	Phone            string         `gorm:"size:20;index" json:"phone"`
+	PackageName      string         `gorm:"size:100" json:"package_name"`
+	ServiceType      string         `gorm:"size:20" json:"service_type"`
+	Price            float64        `gorm:"type:decimal(10,2);default:0" json:"price"`
+	UsedTimes        int            `gorm:"default:0" json:"used_times"`
+	ValidityDuration int            `gorm:"default:0" json:"validity_duration"`
+	ValidFrom        time.Time      `gorm:"type:date" json:"valid_from"`
+	ValidTo          time.Time      `gorm:"type:date" json:"valid_to"`
+	StoreID          uint           `gorm:"index" json:"store_id"`
+	PurchaseAmount   float64        `gorm:"type:decimal(10,2);default:0" json:"purchase_amount"`
+	PurchaseTime     time.Time      `json:"purchase_time"`
+	Status           string         `gorm:"size:20;default:'active';not null" json:"status"`
+	Description      string         `gorm:"type:text" json:"description"`
+	FaceID           string         `gorm:"size:255" json:"face_id"` // 华为云人脸ID
+	CreatedBy        uint           `gorm:"index" json:"created_by"`
+	CreatedAt        time.Time      `json:"created_at"`
+	UpdatedAt        time.Time      `json:"updated_at"`
+	DeletedAt        gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 // TableName 指定表名
@@ -67,25 +72,25 @@ func (m *MemberModel) ToEntity() *member.Member {
 		return nil
 	}
 	return &member.Member{
-		ID:              m.ID,
-		Name:            m.Name,
-		Phone:           m.Phone,
-		PackageName:     m.PackageName,
-		ServiceType:     m.ServiceType,
-		Price:           m.Price,
-		UsedTimes:       m.UsedTimes,
+		ID:               m.ID,
+		Name:             m.Name,
+		Phone:            m.Phone,
+		PackageName:      m.PackageName,
+		ServiceType:      m.ServiceType,
+		Price:            m.Price,
+		UsedTimes:        m.UsedTimes,
 		ValidityDuration: m.ValidityDuration,
-		ValidFrom:       m.ValidFrom,
-		ValidTo:         m.ValidTo,
-		StoreID:         m.StoreID,
-		PurchaseAmount:  m.PurchaseAmount,
-		PurchaseTime:    m.PurchaseTime,
-		Status:          m.Status,
-		Description:     m.Description,
-		FaceID:          m.FaceID,
-		CreatedBy:       m.CreatedBy,
-		CreatedAt:       m.CreatedAt,
-		UpdatedAt:       m.UpdatedAt,
+		ValidFrom:        m.ValidFrom,
+		ValidTo:          m.ValidTo,
+		StoreID:          m.StoreID,
+		PurchaseAmount:   m.PurchaseAmount,
+		PurchaseTime:     m.PurchaseTime,
+		Status:           m.Status,
+		Description:      m.Description,
+		FaceID:           m.FaceID,
+		CreatedBy:        m.CreatedBy,
+		CreatedAt:        m.CreatedAt,
+		UpdatedAt:        m.UpdatedAt,
 	}
 }
 
@@ -307,7 +312,6 @@ type UsageRepository struct {
 
 // NewUsageRepository 创建使用记录仓储实例
 func NewUsageRepository(db database.Database, rdb *persistence.Client, log logger.Logger) *UsageRepository {
-	persistence.Register(&UsageModel{})
 	return &UsageRepository{
 		db:     db,
 		redis:  rdb,
@@ -486,4 +490,3 @@ func (r *UsageRepository) FindByMemberID(ctx context.Context, memberID uint) ([]
 	r.logger.Debug("查找使用记录成功：根据会员ID", logger.NewField("member_id", memberID), logger.NewField("count", len(usages)))
 	return usages, nil
 }
-

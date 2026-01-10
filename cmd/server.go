@@ -31,6 +31,14 @@ var serverCmd = &cobra.Command{
 		quit := make(chan os.Signal, 1)
 		signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
+		// 启动定时任务
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
+
+		go func() {
+			app.CronScheduler.Start(ctx)
+		}()
+
 		// 启动服务器
 		go func() {
 			app.Logger.Info("启动HTTP服务器",
@@ -47,12 +55,15 @@ var serverCmd = &cobra.Command{
 		<-quit
 		app.Logger.Info("正在关闭服务器...")
 
+		// 停止定时任务
+		app.CronScheduler.Stop()
+
 		// 优雅关闭
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
 		// 关闭HTTP服务器
-		if err := app.Server.Stop(ctx); err != nil {
+		if err := app.Server.Stop(shutdownCtx); err != nil {
 			app.Logger.Error("关闭HTTP服务器失败", logger.NewField("error", err.Error()))
 		}
 

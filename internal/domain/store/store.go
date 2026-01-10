@@ -18,17 +18,18 @@ const (
 
 // Store 门店实体
 type Store struct {
-	ID                uint      `json:"id"`
-	Name              string    `json:"name"`                // 门店名称
-	Address           string    `json:"address"`              // 门店地址
-	Phone             string    `json:"phone"`                // 联系电话
-	ContactPerson     string    `json:"contact_person"`       // 联系人
-	Status            string    `json:"status"`              // 状态: operating, closed, shutdown
-	BusinessHoursStart string   `json:"business_hours_start"` // 营业开始时间 (HH:MM格式)
-	BusinessHoursEnd   string   `json:"business_hours_end"`   // 营业结束时间 (HH:MM格式)
-	DepositAmount     float64   `json:"deposit_amount"`       // 押金金额
-	CreatedAt         time.Time `json:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at"`
+	ID                 uint      `json:"id"`
+	Name               string    `json:"name"`                 // 门店名称
+	Address            string    `json:"address"`              // 门店地址
+	Phone              string    `json:"phone"`                // 联系电话
+	ContactPerson      string    `json:"contact_person"`       // 联系人
+	Status             string    `json:"status"`               // 状态: operating, closed, shutdown
+	BusinessHoursStart string    `json:"business_hours_start"` // 营业开始时间 (HH:MM格式)
+	BusinessHoursEnd   string    `json:"business_hours_end"`   // 营业结束时间 (HH:MM格式)
+	DepositAmount      float64   `json:"deposit_amount"`       // 押金金额
+	TemplateID         *uint     `json:"template_id"`          // 时段模板ID（可选）
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
 }
 
 // IStoreRepository 门店仓储接口
@@ -51,11 +52,11 @@ type IStoreRepository interface {
 
 // 领域错误定义
 var (
-	ErrStoreNotFound    = errors.ErrNotFound("门店不存在")
-	ErrInvalidStatus    = errors.ErrInvalidParams("无效的门店状态")
+	ErrStoreNotFound     = errors.ErrNotFound("门店不存在")
+	ErrInvalidStatus     = errors.ErrInvalidParams("无效的门店状态")
 	ErrInvalidTimeFormat = errors.ErrInvalidParams("营业时间格式错误，应为HH:MM格式")
-	ErrInvalidDeposit   = errors.ErrInvalidParams("押金金额不能为负数")
-	ErrNameRequired     = errors.ErrInvalidParams("门店名称不能为空")
+	ErrInvalidDeposit    = errors.ErrInvalidParams("押金金额不能为负数")
+	ErrNameRequired      = errors.ErrInvalidParams("门店名称不能为空")
 )
 
 // StoreService 门店服务
@@ -217,6 +218,10 @@ func (s *StoreService) Update(ctx context.Context, store *Store) error {
 	if store.DepositAmount == 0 && existing.DepositAmount != 0 {
 		store.DepositAmount = existing.DepositAmount
 	}
+	// TemplateID为nil时保留原有值，否则更新为新值
+	if store.TemplateID == nil {
+		store.TemplateID = existing.TemplateID
+	}
 
 	store.UpdatedAt = time.Now()
 
@@ -354,4 +359,3 @@ func (s *StoreService) detectConfigChange(oldStore, newStore *Store) bool {
 		oldStore.BusinessHoursEnd != newStore.BusinessHoursEnd ||
 		oldStore.Status != newStore.Status
 }
-

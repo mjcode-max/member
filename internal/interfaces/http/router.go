@@ -165,15 +165,15 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 	// ==================== 时段管理相关路由 ====================
 	slotsGroup := api.Group("/slots")
 	{
+		// 获取可用时段列表（无需认证，顾客端查询可预约时间）
+		slotsGroup.GET("/available", r.slotHandler.GetAvailableSlotList)
+
 		// 需要认证的路由组
 		slotsProtected := slotsGroup.Group("")
 		slotsProtected.Use(httpInfra.AuthMiddleware(r.authService, r.logger))
 		{
 			// 获取时段列表（所有已认证用户）
 			slotsProtected.GET("", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.slotHandler.GetSlotList)
-
-			// 获取可用时段列表（所有已认证用户）
-			slotsProtected.GET("/available", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.slotHandler.GetAvailableSlotList)
 
 			// 获取时段详情（所有已认证用户）
 			slotsProtected.GET("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.slotHandler.GetSlot)

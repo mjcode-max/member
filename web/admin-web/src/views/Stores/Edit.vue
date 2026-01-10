@@ -98,6 +98,36 @@
           </el-col>
         </el-row>
         
+        <el-form-item label="时段模板" prop="template_id">
+          <el-select
+            v-model="form.template_id"
+            placeholder="请选择时段模板（可选）"
+            clearable
+            filterable
+            style="width: 100%"
+            :loading="loadingTemplates"
+          >
+            <el-option
+              v-for="template in templates"
+              :key="template.id"
+              :label="template.name"
+              :value="template.id"
+            >
+              <span>{{ template.name }}</span>
+              <el-tag
+                :type="template.status === 'active' ? 'success' : 'info'"
+                size="small"
+                style="margin-left: 8px"
+              >
+                {{ template.status === 'active' ? '启用' : '禁用' }}
+              </el-tag>
+            </el-option>
+          </el-select>
+          <div style="color: #909399; font-size: 12px; margin-top: 4px">
+            选择时段模板后，系统将根据模板自动生成可预约时段
+          </div>
+        </el-form-item>
+        
         <el-form-item label="状态" prop="status">
           <el-radio-group v-model="form.status">
             <el-radio value="operating">营业中</el-radio>
@@ -122,6 +152,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getStoreById, updateStore } from '@/api/stores'
+import { getTemplates } from '@/api/templates'
 
 const router = useRouter()
 const route = useRoute()
@@ -129,6 +160,8 @@ const route = useRoute()
 const formRef = ref()
 const loading = ref(false)
 const submitting = ref(false)
+const loadingTemplates = ref(false)
+const templates = ref([])
 
 const form = reactive({
   name: '',
@@ -138,7 +171,8 @@ const form = reactive({
   business_hours_start: '',
   business_hours_end: '',
   status: 'operating',
-  deposit_amount: 0
+  deposit_amount: 0,
+  template_id: null
 })
 
 const rules = {
@@ -186,8 +220,14 @@ const fetchStoreDetail = async () => {
       business_hours_start: storeData.business_hours_start || '',
       business_hours_end: storeData.business_hours_end || '',
       status: storeData.status || 'operating',
-      deposit_amount: storeData.deposit_amount || 0
+      deposit_amount: storeData.deposit_amount || 0,
+      template_id: storeData.template_id || null
     })
+    
+    // 获取该门店的模板列表
+    if (storeData.id) {
+      fetchTemplates(storeData.id)
+    }
   } catch (error) {
     console.error('获取门店详情失败:', error)
     ElMessage.error('获取门店详情失败')
@@ -213,6 +253,22 @@ const handleSubmit = async () => {
     console.error('更新门店失败:', error)
   } finally {
     submitting.value = false
+  }
+}
+
+// 获取时段模板列表
+const fetchTemplates = async (storeId) => {
+  if (!storeId) return
+  
+  loadingTemplates.value = true
+  try {
+    const response = await getTemplates({ store_id: storeId })
+    templates.value = response.data || []
+  } catch (error) {
+    console.error('获取时段模板列表失败:', error)
+    // 不显示错误，因为模板是可选的
+  } finally {
+    loadingTemplates.value = false
   }
 }
 

@@ -20,15 +20,15 @@ const (
 // Slot 时段实体
 type Slot struct {
 	ID           uint      `json:"id"`
-	StoreID      uint      `json:"store_id"`       // 门店ID
-	TechnicianID *uint     `json:"technician_id"`  // 美甲师ID（可选，如果为空表示任意美甲师）
-	Date         time.Time `json:"date"`            // 日期
-	StartTime    time.Time `json:"start_time"`      // 开始时间
-	EndTime      time.Time `json:"end_time"`        // 结束时间
-	Capacity     int       `json:"capacity"`        // 可用容量（在岗美甲师数量）
-	LockedCount  int       `json:"locked_count"`    // 已锁定数量
-	BookedCount  int       `json:"booked_count"`    // 已预约数量
-	Status       string    `json:"status"`          // 状态: available, locked, booked, completed, cancelled
+	StoreID      uint      `json:"store_id"`      // 门店ID
+	TechnicianID *uint     `json:"technician_id"` // 美甲师ID（可选，如果为空表示任意美甲师）
+	Date         time.Time `json:"date"`          // 日期
+	StartTime    time.Time `json:"start_time"`    // 开始时间
+	EndTime      time.Time `json:"end_time"`      // 结束时间
+	Capacity     int       `json:"capacity"`      // 可用容量（在岗美甲师数量）
+	LockedCount  int       `json:"locked_count"`  // 已锁定数量
+	BookedCount  int       `json:"booked_count"`  // 已预约数量
+	Status       string    `json:"status"`        // 状态: available, locked, booked, completed, cancelled
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }
@@ -61,17 +61,19 @@ type ISlotRepository interface {
 	ReleaseSlot(ctx context.Context, slotID uint, count int) error
 	// DeleteByTechnicianIDAndFuture 删除指定美甲师的所有未来时段
 	DeleteByTechnicianIDAndFuture(ctx context.Context, technicianID uint, fromDate time.Time) error
+	// DeleteByIDs 批量删除时段
+	DeleteByIDs(ctx context.Context, ids []uint) error
 	// FindByTechnicianIDAndDateRange 根据美甲师ID和日期范围查找时段列表
 	FindByTechnicianIDAndDateRange(ctx context.Context, technicianID uint, startDate, endDate time.Time) ([]*Slot, error)
 }
 
 // 领域错误定义
 var (
-	ErrSlotNotFound        = errors.ErrNotFound("时段不存在")
-	ErrSlotNotAvailable   = errors.ErrInvalidParams("时段不可用")
+	ErrSlotNotFound         = errors.ErrNotFound("时段不存在")
+	ErrSlotNotAvailable     = errors.ErrInvalidParams("时段不可用")
 	ErrInsufficientCapacity = errors.ErrInvalidParams("时段容量不足")
-	ErrInvalidSlotDate     = errors.ErrInvalidParams("无效的时段日期")
-	ErrInvalidSlotTime     = errors.ErrInvalidParams("无效的时段时间")
+	ErrInvalidSlotDate      = errors.ErrInvalidParams("无效的时段日期")
+	ErrInvalidSlotTime      = errors.ErrInvalidParams("无效的时段时间")
 )
 
 // IUserRepositoryForSlot 用于时段服务获取美甲师列表的接口（避免循环依赖）
@@ -149,17 +151,43 @@ func (s *SlotService) GetAvailableByStoreIDAndDate(ctx context.Context, storeID 
 	return slots, nil
 }
 
-// GenerateSlots 根据模板生成时段（用于初始化或重新生成）
-func (s *SlotService) GenerateSlots(ctx context.Context, storeID uint, startDate, endDate time.Time, technicianCount int) error {
-	s.logger.Info("生成时段",
+// GetByStoreIDAndDateRange 根据门店ID和日期范围获取时段列表
+func (s *SlotService) GetByStoreIDAndDateRange(ctx context.Context, storeID uint, startDate, endDate time.Time) ([]*Slot, error) {
+	s.logger.Debug("获取门店时段列表（日期范围）",
 		logger.NewField("store_id", storeID),
+		logger.NewField("start_date", startDate.Format("2006-01-02")),
+		logger.NewField("end_date", endDate.Format("2006-01-02")),
+	)
+
+	slots, err := s.slotRepo.FindByStoreIDAndDateRange(ctx, storeID, startDate, endDate)
+	if err != nil {
+		s.logger.Error("查找时段列表失败", logger.NewField("store_id", storeID), logger.NewField("error", err.Error()))
+		return nil, err
+	}
+
+	return slots, nil
+}
+
+// GenerateSlots 根据模板生成时段（用于初始化或重新生成）
+// 注意：此方法已废弃，请使用 GenerateSlotsByTemplateID
+// 保留此方法是为了向后兼容，实际会调用 GenerateSlotsByTemplateID
+func (s *SlotService) GenerateSlots(ctx context.Context, storeID uint, startDate, endDate time.Time, technicianCount int) error {
+	// 此方法需要 templateID，但为了向后兼容，返回错误提示使用新方法
+	return errors.ErrInvalidParams("此方法已废弃，请使用 GenerateSlotsByTemplateID 并传入 template_id")
+}
+
+// GenerateSlotsByTemplateID 根据指定的模板ID生成时段
+func (s *SlotService) GenerateSlotsByTemplateID(ctx context.Context, storeID uint, templateID uint, startDate, endDate time.Time, technicianCount int) error {
+	s.logger.Info("根据模板ID生成时段",
+		logger.NewField("store_id", storeID),
+		logger.NewField("template_id", templateID),
 		logger.NewField("start_date", startDate.Format("2006-01-02")),
 		logger.NewField("end_date", endDate.Format("2006-01-02")),
 		logger.NewField("technician_count", technicianCount),
 	)
 
-	// 获取启用的模板
-	template, err := s.templateRepo.FindActiveByStoreID(ctx, storeID)
+	// 获取指定的模板
+	template, err := s.templateRepo.FindByID(ctx, templateID)
 	if err != nil {
 		return err
 	}
@@ -167,44 +195,65 @@ func (s *SlotService) GenerateSlots(ctx context.Context, storeID uint, startDate
 		return ErrTemplateNotFound
 	}
 
+	// 检查模板是否启用
+	if template.Status != TemplateStatusActive {
+		return ErrTemplateInactive
+	}
+
 	// 生成时段列表
 	slots := make([]*Slot, 0)
 	currentDate := startDate
 	for currentDate.Before(endDate) || currentDate.Equal(endDate) {
-		weekday := int(currentDate.Weekday())
-		// 查找该天的规则
-		for _, rule := range template.WeekdayRules {
-			if rule.Weekday == weekday {
-				// 为该天的每个时段规则生成时段
-				for _, timeSlot := range rule.Slots {
-					startTime, err := parseTime(currentDate, timeSlot.StartTime)
-					if err != nil {
-						s.logger.Warn("解析开始时间失败", logger.NewField("time", timeSlot.StartTime), logger.NewField("error", err.Error()))
-						continue
-					}
-					endTime, err := parseTime(currentDate, timeSlot.EndTime)
-					if err != nil {
-						s.logger.Warn("解析结束时间失败", logger.NewField("time", timeSlot.EndTime), logger.NewField("error", err.Error()))
-						continue
-					}
+		// 检测该日期是否已存在时段
+		existingSlots, err := s.slotRepo.FindByStoreIDAndDate(ctx, storeID, currentDate)
+		if err != nil {
+			s.logger.Error("查找现有时段失败",
+				logger.NewField("store_id", storeID),
+				logger.NewField("date", currentDate.Format("2006-01-02")),
+				logger.NewField("error", err.Error()),
+			)
+			currentDate = currentDate.AddDate(0, 0, 1)
+			continue
+		}
 
-					slot := &Slot{
-						StoreID:     storeID,
-						TechnicianID: nil, // 不指定具体美甲师
-						Date:        currentDate,
-						StartTime:   startTime,
-						EndTime:     endTime,
-						Capacity:    technicianCount, // 基于在岗美甲师数量
-						LockedCount: 0,
-						BookedCount: 0,
-						Status:      SlotStatusAvailable,
-						CreatedAt:   time.Now(),
-						UpdatedAt:   time.Now(),
-					}
-					slots = append(slots, slot)
-				}
-				break
+		// 如果已存在时段（无论是否有预约），跳过该日期，不再重复生成
+		if len(existingSlots) > 0 {
+			s.logger.Debug("日期已有时段记录，跳过生成",
+				logger.NewField("store_id", storeID),
+				logger.NewField("date", currentDate.Format("2006-01-02")),
+				logger.NewField("count", len(existingSlots)),
+			)
+			currentDate = currentDate.AddDate(0, 0, 1)
+			continue
+		}
+
+		// 每天使用相同的时段规则生成新时段
+		for _, timeSlot := range template.TimeSlots {
+			startTime, err := parseTime(currentDate, timeSlot.StartTime)
+			if err != nil {
+				s.logger.Warn("解析开始时间失败", logger.NewField("time", timeSlot.StartTime), logger.NewField("error", err.Error()))
+				continue
 			}
+			endTime, err := parseTime(currentDate, timeSlot.EndTime)
+			if err != nil {
+				s.logger.Warn("解析结束时间失败", logger.NewField("time", timeSlot.EndTime), logger.NewField("error", err.Error()))
+				continue
+			}
+
+			slot := &Slot{
+				StoreID:      storeID,
+				TechnicianID: nil, // 不指定具体美甲师
+				Date:         currentDate,
+				StartTime:    startTime,
+				EndTime:      endTime,
+				Capacity:     technicianCount, // 基于在岗美甲师数量
+				LockedCount:  0,
+				BookedCount:  0,
+				Status:       SlotStatusAvailable,
+				CreatedAt:    time.Now(),
+				UpdatedAt:    time.Now(),
+			}
+			slots = append(slots, slot)
 		}
 		currentDate = currentDate.AddDate(0, 0, 1)
 	}
@@ -220,7 +269,7 @@ func (s *SlotService) GenerateSlots(ctx context.Context, storeID uint, startDate
 		return err
 	}
 
-	s.logger.Info("生成时段成功", logger.NewField("count", len(slots)))
+	s.logger.Info("根据模板ID生成时段成功", logger.NewField("count", len(slots)))
 	return nil
 }
 
@@ -405,6 +454,23 @@ func (s *SlotService) ReleaseTechnicianSlots(ctx context.Context, technicianID u
 	return nil
 }
 
+// DeleteByIDs 批量删除时段
+func (s *SlotService) DeleteByIDs(ctx context.Context, ids []uint) error {
+	s.logger.Info("批量删除时段", logger.NewField("count", len(ids)))
+
+	if len(ids) == 0 {
+		return nil
+	}
+
+	if err := s.slotRepo.DeleteByIDs(ctx, ids); err != nil {
+		s.logger.Error("批量删除时段失败", logger.NewField("error", err.Error()))
+		return err
+	}
+
+	s.logger.Info("批量删除时段成功", logger.NewField("count", len(ids)))
+	return nil
+}
+
 // parseTime 解析时间字符串并组合日期
 func parseTime(date time.Time, timeStr string) (time.Time, error) {
 	// 解析时间字符串 (HH:MM)
@@ -426,4 +492,3 @@ func parseTime(date time.Time, timeStr string) (time.Time, error) {
 		date.Location(),
 	), nil
 }
-

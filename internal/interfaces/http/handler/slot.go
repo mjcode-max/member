@@ -79,43 +79,54 @@ func (h *SlotTemplateHandler) GetTemplate(c *gin.Context) {
 
 // GetTemplateList 获取时段模板列表
 // @Summary 获取时段模板列表
-// @Description 根据门店ID获取时段模板列表
+// @Description 获取所有时段模板列表，支持按状态筛选
 // @Tags 时段管理
 // @Accept json
 // @Produce json
 // @Security BearerAuth
-// @Param store_id query int true "门店ID"
+// @Param status query string false "状态筛选 (active/inactive)"
 // @Success 200 {array} slot.Template
 // @Router /slot-templates [get]
 func (h *SlotTemplateHandler) GetTemplateList(c *gin.Context) {
 	startTime := time.Now()
 	requestID := getRequestID(c)
 
-	storeIDStr := c.Query("store_id")
-	storeID, err := strconv.ParseUint(storeIDStr, 10, 32)
-	if err != nil {
-		h.logger.Warn("无效的门店ID",
-			logger.NewField("request_id", requestID),
-			logger.NewField("store_id", storeIDStr),
-		)
-		utils.ErrorWithCode(c, http.StatusBadRequest, "无效的门店ID")
-		return
-	}
-
 	ctx := c.Request.Context()
-	templates, err := h.service.GetByStoreID(ctx, uint(storeID))
-	if err != nil {
-		h.logger.Error("获取时段模板列表失败",
-			logger.NewField("request_id", requestID),
-			logger.NewField("error", err.Error()),
-			logger.NewField("duration_ms", time.Since(startTime).Milliseconds()),
-		)
-		utils.Error(c, err)
-		return
+	status := c.Query("status")
+
+	var templates []*slot.Template
+	var err error
+
+	// 根据状态筛选
+	if status != "" {
+		templates, err = h.service.GetByStatus(ctx, status)
+		if err != nil {
+			h.logger.Error("按状态获取时段模板列表失败",
+				logger.NewField("request_id", requestID),
+				logger.NewField("status", status),
+				logger.NewField("error", err.Error()),
+				logger.NewField("duration_ms", time.Since(startTime).Milliseconds()),
+			)
+			utils.Error(c, err)
+			return
+		}
+	} else {
+		// 返回所有模板
+		templates, err = h.service.GetAll(ctx)
+		if err != nil {
+			h.logger.Error("获取所有时段模板列表失败",
+				logger.NewField("request_id", requestID),
+				logger.NewField("error", err.Error()),
+				logger.NewField("duration_ms", time.Since(startTime).Milliseconds()),
+			)
+			utils.Error(c, err)
+			return
+		}
 	}
 
 	h.logger.Info("获取时段模板列表成功",
 		logger.NewField("request_id", requestID),
+		logger.NewField("status", status),
 		logger.NewField("count", len(templates)),
 		logger.NewField("duration_ms", time.Since(startTime).Milliseconds()),
 	)
@@ -149,10 +160,9 @@ func (h *SlotTemplateHandler) CreateTemplate(c *gin.Context) {
 
 	// 转换为领域实体
 	newTemplate := &slot.Template{
-		StoreID:      req.StoreID,
-		Name:         req.Name,
-		Status:       req.Status,
-		WeekdayRules: req.WeekdayRules,
+		Name:      req.Name,
+		Status:    req.Status,
+		TimeSlots: req.TimeSlots,
 	}
 
 	ctx := c.Request.Context()
@@ -213,10 +223,10 @@ func (h *SlotTemplateHandler) UpdateTemplate(c *gin.Context) {
 
 	// 转换为领域实体
 	updateTemplate := &slot.Template{
-		ID:           uint(id),
-		Name:         req.Name,
-		Status:       req.Status,
-		WeekdayRules: req.WeekdayRules,
+		ID:        uint(id),
+		Name:      req.Name,
+		Status:    req.Status,
+		TimeSlots: req.TimeSlots,
 	}
 
 	ctx := c.Request.Context()
@@ -512,7 +522,7 @@ func (h *SlotHandler) GenerateSlots(c *gin.Context) {
 	}
 
 	ctx := c.Request.Context()
-	if err := h.service.GenerateSlots(ctx, req.StoreID, startDate, endDate, req.TechnicianCount); err != nil {
+	if err := h.service.GenerateSlotsByTemplateID(ctx, req.StoreID, req.TemplateID, startDate, endDate, req.TechnicianCount); err != nil {
 		h.logger.Error("生成时段失败",
 			logger.NewField("request_id", requestID),
 			logger.NewField("error", err.Error()),
@@ -763,25 +773,25 @@ func (h *SlotHandler) RecalculateCapacity(c *gin.Context) {
 
 // CreateTemplateRequest 创建时段模板请求
 type CreateTemplateRequest struct {
-	StoreID      uint                `json:"store_id" binding:"required"`
-	Name         string              `json:"name" binding:"required"`
-	Status       string              `json:"status"`
-	WeekdayRules []slot.WeekdayRule `json:"weekday_rules" binding:"required"`
+	Name      string              `json:"name" binding:"required"`
+	Status    string              `json:"status"`
+	TimeSlots []slot.TimeSlotRule `json:"time_slots" binding:"required"`
 }
 
 // UpdateTemplateRequest 更新时段模板请求
 type UpdateTemplateRequest struct {
-	Name         string              `json:"name"`
-	Status       string              `json:"status"`
-	WeekdayRules []slot.WeekdayRule `json:"weekday_rules"`
+	Name      string              `json:"name"`
+	Status    string              `json:"status"`
+	TimeSlots []slot.TimeSlotRule `json:"time_slots"`
 }
 
 // GenerateSlotsRequest 生成时段请求
 type GenerateSlotsRequest struct {
-	StoreID          uint   `json:"store_id" binding:"required"`
-	StartDate        string `json:"start_date" binding:"required"`
-	EndDate          string `json:"end_date" binding:"required"`
-	TechnicianCount  int    `json:"technician_count" binding:"required,min=1"`
+	StoreID         uint   `json:"store_id" binding:"required"`
+	TemplateID      uint   `json:"template_id" binding:"required"`
+	StartDate       string `json:"start_date" binding:"required"`
+	EndDate         string `json:"end_date" binding:"required"`
+	TechnicianCount int    `json:"technician_count" binding:"required,min=1"`
 }
 
 // LockSlotRequest 锁定时段请求
@@ -814,4 +824,3 @@ type RecalculateCapacityRequest struct {
 	FromDate        string `json:"from_date" binding:"required"`
 	TechnicianCount int    `json:"technician_count" binding:"required,min=0"`
 }
-

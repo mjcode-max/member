@@ -5,18 +5,18 @@ package infrastructure
 
 import (
 	"github.com/google/wire"
+	"member-pre/internal/domain"
+	"member-pre/internal/domain/auth"
 	"member-pre/internal/infrastructure/config"
 	"member-pre/internal/infrastructure/face"
 	httpInfra "member-pre/internal/infrastructure/http"
 	infraLogger "member-pre/internal/infrastructure/logger"
 	"member-pre/internal/infrastructure/persistence"
 	"member-pre/internal/infrastructure/persistence/database"
+	"member-pre/internal/infrastructure/repository"
+	"member-pre/internal/infrastructure/scheduler"
 	"member-pre/internal/interfaces/http"
 	pkgLogger "member-pre/pkg/logger"
-
-	"member-pre/internal/domain"
-	"member-pre/internal/domain/auth"
-	"member-pre/internal/infrastructure/repository"
 )
 
 // 类型别名，用于 Wire 依赖注入时区分不同的 string 类型
@@ -38,10 +38,11 @@ func InitializeApp(cfgPath ConfigPath) (*App, error) {
 		NewLogger, // 创建日志实例，直接返回logger.Logger接口
 		database.NewDatabase,
 		persistence.NewClient,
-		repository.WireRepoSet, // Repository需要logger
-		domain.WireDoMainSet,   // Domain需要logger和配置值
-		face.WireFaceSet,       // Face服务需要配置和logger
-		http.WireHttpSet,       // Handler需要logger和RouteRegistrar
+		repository.WireRepoSet,     // Repository需要logger
+		domain.WireDoMainSet,       // Domain需要logger和配置值
+		face.WireFaceSet,           // Face服务需要配置和logger
+		http.WireHttpSet,           // Handler需要logger和RouteRegistrar
+		scheduler.WireSchedulerSet, // Scheduler需要domain services
 		// 提供RouteRegistrar切片（直接收集所有RouteRegistrar）
 		ProvideRouteRegistrars,
 		// HTTP服务器（需要logger和RouteRegistrar切片）
@@ -89,11 +90,13 @@ func ProvideRouteRegistrars(appRegistrar httpInfra.RouteRegistrar) []httpInfra.R
 
 // App 应用结构
 type App struct {
-	Config *config.Config
-	Logger pkgLogger.Logger
-	DB     database.Database
-	Redis  *persistence.Client
-	Server *httpInfra.Server
+	Config               *config.Config
+	Logger               pkgLogger.Logger
+	DB                   database.Database
+	Redis                *persistence.Client
+	Server               *httpInfra.Server
+	CronScheduler        *scheduler.CronScheduler
+	SlotSchedulerService *scheduler.SlotSchedulerService
 }
 
 // NewApp 创建应用实例
@@ -103,13 +106,17 @@ func NewApp(
 	db database.Database,
 	rdb *persistence.Client,
 	srv *httpInfra.Server,
+	cronScheduler *scheduler.CronScheduler,
+	slotSchedulerService *scheduler.SlotSchedulerService,
 ) *App {
 	return &App{
-		Config: cfg,
-		Logger: log,
-		DB:     db,
-		Redis:  rdb,
-		Server: srv,
+		Config:               cfg,
+		Logger:               log,
+		DB:                   db,
+		Redis:                rdb,
+		Server:               srv,
+		CronScheduler:        cronScheduler,
+		SlotSchedulerService: slotSchedulerService,
 	}
 }
 

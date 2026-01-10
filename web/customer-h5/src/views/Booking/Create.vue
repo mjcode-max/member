@@ -134,7 +134,7 @@
               <div class="slot-time">{{ slot.time_slot }}</div>
               <div class="slot-availability">
                 <span class="available-count">{{ slot.available_count }}</span>
-                <span class="total-count">/{{ slot.total_count }}</span>
+                <span class="total-count">/{{ slot.capacity }}</span>
               </div>
             </div>
           </div>
@@ -329,6 +329,7 @@ const form = reactive({
   service_type: 'manicure',
   booking_date: '',
   time_slot: '',
+  slot_id: null, // 时段ID，用于预约
   customer_name: '',
   customer_phone: ''
 })
@@ -434,7 +435,48 @@ const fetchAvailableSlots = async () => {
     const response = await getAvailableSlots(params)
     console.log('获取可用时间段响应:', response)
     
-    availableTimeSlots.value = response.data.time_slots || []
+    // 后端返回格式: { code: 200, data: [...] } 或直接是数组
+    let slots = []
+    if (response.data) {
+      if (Array.isArray(response.data)) {
+        slots = response.data
+      } else if (response.data.time_slots) {
+        slots = response.data.time_slots
+      }
+    }
+    
+    // 转换为前端需要的格式
+    availableTimeSlots.value = slots.map(slot => {
+      // 格式化时间段显示
+      let startTime = ''
+      let endTime = ''
+      
+      if (slot.start_time) {
+        // 处理ISO格式时间字符串或Date对象
+        const start = typeof slot.start_time === 'string' ? new Date(slot.start_time) : slot.start_time
+        startTime = start.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+      }
+      
+      if (slot.end_time) {
+        const end = typeof slot.end_time === 'string' ? new Date(slot.end_time) : slot.end_time
+        endTime = end.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false })
+      }
+      
+      const timeSlot = startTime && endTime ? `${startTime}-${endTime}` : ''
+      
+      // 计算可用数量
+      const availableCount = (slot.capacity || 0) - (slot.locked_count || 0) - (slot.booked_count || 0)
+      
+      return {
+        id: slot.id,
+        time_slot: timeSlot,
+        start_time: startTime,
+        end_time: endTime,
+        available_count: Math.max(0, availableCount),
+        capacity: slot.capacity || 0,
+        slot_id: slot.id // 用于后续预约
+      }
+    })
     
     if (availableTimeSlots.value.length === 0) {
       console.log('该日期暂无可用时段')
@@ -456,6 +498,7 @@ const selectTimeSlot = (slot) => {
     return
   }
   form.time_slot = slot.time_slot
+  form.slot_id = slot.slot_id || slot.id // 保存slot_id用于预约
 }
 
 // 选择门店
