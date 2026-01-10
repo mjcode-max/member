@@ -132,8 +132,8 @@ const loading = ref(false)
 const showUserTypePicker = ref(false)
 
 const loginForm = reactive({
-  username: 'store_manager_1',
-  password: 'password',
+  username: 'liukang',
+  password: '123456',
   user_type: 'store_manager'
 })
 

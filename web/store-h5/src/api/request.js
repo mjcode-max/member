@@ -42,12 +42,19 @@ request.interceptors.response.use(
     // 统一处理响应数据 - 后端返回格式: { code, message, data }
     if (data.code === 200 || data.code === 201 || data.code === 0) {
       return data
-    } else if (data.code === 401 || data.code === 403) {
-      // token过期或权限不足，清除用户信息并跳转到登录页
+    } else if (data.code === 401) {
+      // token过期，清除用户信息并跳转到登录页
       const userStore = useUserStore()
       userStore.logoutAction()
-      window.location.href = '/login'
+      // 延迟跳转，避免页面闪烁
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 100)
       return Promise.reject(new Error(data.message || '认证失败'))
+    } else if (data.code === 403) {
+      // 权限不足，只显示错误提示，不跳转登录
+      showFailToast(data.message || '权限不足')
+      return Promise.reject(new Error(data.message || '权限不足'))
     } else {
       // 其他错误，不显示 Toast，只记录日志
       console.error('请求失败:', data.message || '请求失败')
@@ -67,10 +74,14 @@ request.interceptors.response.use(
           console.error('认证失败:', errorMessage || '认证失败，请重新登录')
           const userStore = useUserStore()
           userStore.logoutAction()
-          window.location.href = '/login'
+          // 延迟跳转，避免页面闪烁
+          setTimeout(() => {
+            window.location.href = '/login'
+          }, 100)
           break
         case 403:
-          console.error('权限不足:', errorMessage || '权限不足')
+          // 权限不足，只显示错误提示，不跳转登录
+          showFailToast(errorMessage || '权限不足')
           break
         case 404:
           console.error('请求的资源不存在:', errorMessage || '请求的资源不存在')

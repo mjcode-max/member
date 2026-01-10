@@ -1,6 +1,9 @@
 package handler
 
 import (
+	"encoding/json"
+	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
@@ -8,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"member-pre/internal/domain/slot"
 	"member-pre/internal/domain/user"
+	"member-pre/internal/infrastructure/config"
 	"member-pre/pkg/logger"
 	"member-pre/pkg/utils"
 )
@@ -25,6 +29,17 @@ func NewUserHandler(service *user.UserService, slotService *slot.SlotService, lo
 		service:     service,
 		slotService: slotService,
 		logger:      log,
+	service *user.UserService
+	logger  logger.Logger
+	config  *config.Config
+}
+
+// NewUserHandler 创建用户处理器
+func NewUserHandler(service *user.UserService, log logger.Logger, cfg *config.Config) *UserHandler {
+	return &UserHandler{
+		service: service,
+		logger:  log,
+		config:  cfg,
 	}
 }
 
@@ -900,4 +915,165 @@ type UpdateUserRequest struct {
 // UpdateUserStatusRequest 更新用户状态请求
 type UpdateUserStatusRequest struct {
 	Status string `json:"status" binding:"required,oneof=active inactive"` // 状态
+}
+
+// WechatLoginByCode 通过微信code换取openid并保存
+// @Summary 通过微信code换取openid并保存
+// @Description 通过微信授权code换取openid并保存到数据库（公开接口，无需认证）
+// @Tags 用户管理
+// @Accept json
+// @Produce json
+// @Param request body WechatLoginByCodeRequest true "微信登录请求"
+// @Success 200 {object} map[string]string
+// @Router /public/customer/wechat/login [post]
+func (h *UserHandler) WechatLoginByCode(c *gin.Context) {
+	startTime := time.Now()
+	requestID := getRequestID(c)
+
+	var req WechatLoginByCodeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		h.logger.Warn("微信登录请求参数错误",
+			logger.NewField("request_id", requestID),
+			logger.NewField("error", err.Error()),
+		)
+		utils.ErrorWithCode(c, http.StatusBadRequest, "请求参数错误: "+err.Error())
+		return
+	}
+
+	// 检查微信配置
+	if h.config.Wechat.AppID == "" || h.config.Wechat.AppSecret == "" {
+		h.logger.Error("微信配置未设置",
+			logger.NewField("request_id", requestID),
+		)
+		utils.ErrorWithCode(c, http.StatusInternalServerError, "微信配置未设置，请联系管理员")
+		return
+	}
+
+	// 通过code换取openid和手机号
+	openid, phone, err := h.getOpenIDAndPhoneByCode(req.Code)
+	if err != nil {
+		h.logger.Error("获取微信OpenID和手机号失败",
+			logger.NewField("request_id", requestID),
+			logger.NewField("code", req.Code),
+			logger.NewField("error", err.Error()),
+		)
+		utils.ErrorWithCode(c, http.StatusInternalServerError, "获取微信OpenID和手机号失败: "+err.Error())
+		return
+	}
+
+	// 如果请求中提供了手机号，优先使用请求中的手机号
+	if req.Phone != "" {
+		phone = req.Phone
+	}
+
+	// 保存openid和手机号到数据库
+	ctx := c.Request.Context()
+	if err := h.service.SaveCustomerOpenID(ctx, openid, phone); err != nil {
+		h.logger.Error("保存顾客OpenID和手机号失败",
+			logger.NewField("request_id", requestID),
+			logger.NewField("openid", openid),
+			logger.NewField("phone", phone),
+			logger.NewField("error", err.Error()),
+			logger.NewField("duration_ms", time.Since(startTime).Milliseconds()),
+		)
+		utils.Error(c, err)
+		return
+	}
+
+	h.logger.Info("微信登录成功",
+		logger.NewField("request_id", requestID),
+		logger.NewField("openid", openid),
+		logger.NewField("phone", phone),
+		logger.NewField("duration_ms", time.Since(startTime).Milliseconds()),
+	)
+
+	utils.SuccessWithMessage(c, "登录成功", map[string]interface{}{
+		"openid": openid,
+		"phone":  phone,
+	})
+}
+
+// getOpenIDAndPhoneByCode 通过微信code换取openid和手机号
+func (h *UserHandler) getOpenIDAndPhoneByCode(code string) (openID, phone string, err error) {
+	// 第一步：通过code获取access_token和openid
+	url := fmt.Sprintf("https://api.weixin.qq.com/sns/oauth2/access_token?appid=%s&secret=%s&code=%s&grant_type=authorization_code",
+		h.config.Wechat.AppID,
+		h.config.Wechat.AppSecret,
+		code,
+	)
+
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", "", fmt.Errorf("请求微信API失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", fmt.Errorf("读取微信API响应失败: %w", err)
+	}
+
+	// 解析响应
+	var tokenResult struct {
+		AccessToken  string `json:"access_token"`
+		ExpiresIn    int    `json:"expires_in"`
+		RefreshToken string `json:"refresh_token"`
+		OpenID       string `json:"openid"`
+		Scope        string `json:"scope"`
+		ErrCode      int    `json:"errcode"`
+		ErrMsg       string `json:"errmsg"`
+	}
+
+	if err := json.Unmarshal(body, &tokenResult); err != nil {
+		return "", "", fmt.Errorf("解析微信API响应失败: %w", err)
+	}
+
+	// 检查错误
+	if tokenResult.ErrCode != 0 {
+		return "", "", fmt.Errorf("微信API返回错误: %d, %s", tokenResult.ErrCode, tokenResult.ErrMsg)
+	}
+
+	if tokenResult.OpenID == "" {
+		return "", "", fmt.Errorf("微信API未返回openid")
+	}
+
+	openID = tokenResult.OpenID
+
+	// 第二步：通过access_token获取用户信息（包含手机号，如果授权了）
+	// 注意：手机号需要特殊权限，普通授权可能无法获取
+	if tokenResult.AccessToken != "" && tokenResult.Scope == "snsapi_userinfo" {
+		userInfoURL := fmt.Sprintf("https://api.weixin.qq.com/sns/userinfo?access_token=%s&openid=%s&lang=zh_CN",
+			tokenResult.AccessToken,
+			tokenResult.OpenID,
+		)
+
+		userResp, err := http.Get(userInfoURL)
+		if err == nil {
+			defer userResp.Body.Close()
+			userBody, err := io.ReadAll(userResp.Body)
+			if err == nil {
+				var userInfo struct {
+					OpenID     string `json:"openid"`
+					Nickname   string `json:"nickname"`
+					HeadImgURL string `json:"headimgurl"`
+					Phone      string `json:"phone"` // 注意：普通授权可能没有此字段
+					ErrCode    int    `json:"errcode"`
+					ErrMsg     string `json:"errmsg"`
+				}
+				if err := json.Unmarshal(userBody, &userInfo); err == nil {
+					if userInfo.ErrCode == 0 {
+						phone = userInfo.Phone
+					}
+				}
+			}
+		}
+	}
+
+	return openID, phone, nil
+}
+
+// WechatLoginByCodeRequest 微信登录请求
+type WechatLoginByCodeRequest struct {
+	Code  string `json:"code" binding:"required"` // 微信授权code
+	Phone string `json:"phone"`                   // 手机号（可选，如果微信授权无法获取手机号，可以手动传入）
 }

@@ -1,4 +1,5 @@
-// 微信相关工具函数
+// 微信登录相关工具函数
+import { WECHAT_CONFIG } from '@/config/wechat'
 
 // 检查是否在微信浏览器中
 export const isWechatBrowser = () => {
@@ -6,179 +7,79 @@ export const isWechatBrowser = () => {
   return ua.includes('micromessenger')
 }
 
-// 获取微信授权码
-export const getWechatCode = () => {
-  return new Promise((resolve, reject) => {
-    // 检查URL中是否已有code
-    const urlParams = new URLSearchParams(window.location.search)
-    const code = urlParams.get('code')
-    
-    if (code) {
-      resolve(code)
-      return
-    }
-
-    // 如果没有code，跳转到微信授权页面
-    const appId = 'your_wechat_app_id' // 这里需要替换为实际的AppID
-    
-    // 检查AppID是否已配置
-    if (appId === 'your_wechat_app_id') {
-      reject(new Error('微信AppID未配置，请联系管理员'))
-      return
-    }
-    
-    const redirectUri = encodeURIComponent(window.location.href)
-    const scope = 'snsapi_userinfo'
-    const state = 'STATE'
-    
-    const authUrl = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${appId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}#wechat_redirect`
-    
-    window.location.href = authUrl
-  })
-}
-
-// 初始化微信JS-SDK
-export const initWechatSDK = async (config) => {
-  return new Promise((resolve, reject) => {
-    if (typeof wx === 'undefined') {
-      reject(new Error('微信JS-SDK未加载'))
-      return
-    }
-
-    wx.config({
-      debug: false,
-      appId: config.appId,
-      timestamp: config.timestamp,
-      nonceStr: config.nonceStr,
-      signature: config.signature,
-      jsApiList: [
-        'checkJsApi',
-        'onMenuShareTimeline',
-        'onMenuShareAppMessage',
-        'onMenuShareQQ',
-        'onMenuShareWeibo',
-        'onMenuShareQZone',
-        'hideMenuItems',
-        'showMenuItems',
-        'hideAllNonBaseMenuItem',
-        'showAllNonBaseMenuItem',
-        'translateVoice',
-        'startRecord',
-        'stopRecord',
-        'onVoiceRecordEnd',
-        'playVoice',
-        'pauseVoice',
-        'stopVoice',
-        'onVoicePlayEnd',
-        'uploadVoice',
-        'downloadVoice',
-        'chooseImage',
-        'previewImage',
-        'uploadImage',
-        'downloadImage',
-        'getNetworkType',
-        'openLocation',
-        'getLocation',
-        'hideOptionMenu',
-        'showOptionMenu',
-        'closeWindow',
-        'scanQRCode',
-        'chooseWXPay',
-        'openProductSpecificView',
-        'addCard',
-        'chooseCard',
-        'openCard'
-      ]
-    })
-    
-    wx.ready(() => {
-      console.log('微信JS-SDK初始化成功')
-      resolve()
-    })
-    
-    wx.error((res) => {
-      console.error('微信JS-SDK初始化失败:', res)
-      reject(res)
-    })
-  })
-}
-
-// 微信分享
-export const shareToWechat = (shareData) => {
-  if (typeof wx === 'undefined') {
-    console.error('微信JS-SDK未加载')
-    return
+// 跳转到微信授权页面获取code
+export const redirectToWechatAuth = () => {
+  const appId = WECHAT_CONFIG.appId
+  
+  // 检查AppID是否已配置
+  if (!appId || appId === 'your_wechat_app_id') {
+    throw new Error('微信AppID未配置，请联系管理员')
   }
-
-  // 分享到朋友圈
-  wx.onMenuShareTimeline({
-    title: shareData.title,
-    link: shareData.link,
-    imgUrl: shareData.imgUrl,
-    success: () => {
-      console.log('分享到朋友圈成功')
-    },
-    cancel: () => {
-      console.log('取消分享到朋友圈')
-    }
-  })
-
-  // 分享给朋友
-  wx.onMenuShareAppMessage({
-    title: shareData.title,
-    desc: shareData.desc,
-    link: shareData.link,
-    imgUrl: shareData.imgUrl,
-    success: () => {
-      console.log('分享给朋友成功')
-    },
-    cancel: () => {
-      console.log('取消分享给朋友')
-    }
-  })
-}
-
-// 获取微信用户位置
-export const getWechatLocation = () => {
-  return new Promise((resolve, reject) => {
-    if (typeof wx === 'undefined') {
-      reject(new Error('微信JS-SDK未加载'))
-      return
-    }
-
-    wx.getLocation({
-      type: 'wgs84',
-      success: (res) => {
-        resolve({
-          latitude: res.latitude,
-          longitude: res.longitude,
-          speed: res.speed,
-          accuracy: res.accuracy
-        })
-      },
-      fail: (err) => {
-        reject(err)
+  
+  // 构建redirect_uri
+  let redirectUri = WECHAT_CONFIG.redirectUri || (window.location.origin + window.location.pathname)
+  
+  // 如果使用配置的redirectUri，直接使用；否则处理当前URL
+  if (!WECHAT_CONFIG.redirectUri) {
+    // 移除非标准端口号（微信不允许redirect_uri包含非标准端口）
+    const urlObj = new URL(redirectUri)
+    if (urlObj.port && urlObj.port !== '80' && urlObj.port !== '443') {
+      if ((urlObj.protocol === 'http:' && urlObj.port !== '80') || 
+          (urlObj.protocol === 'https:' && urlObj.port !== '443')) {
+        redirectUri = `${urlObj.protocol}//${urlObj.hostname}${urlObj.pathname}`
       }
-    })
+    }
+    
+    // 确保redirect_uri指向登录页面
+    if (!redirectUri.endsWith('/login')) {
+      redirectUri = redirectUri.replace(/\/[^/]*$/, '/login')
+    }
+  }
+  
+  const encodedRedirectUri = encodeURIComponent(redirectUri)
+  const scope = 'snsapi_userinfo' // 需要用户授权，可以获取用户基本信息（手机号需要特殊权限）
+  const state = 'STATE'
+  
+  const authUrl = `https://open.weixin.qq.com/connect/oauth2/authorize?appid=${appId}&redirect_uri=${encodedRedirectUri}&response_type=code&scope=${scope}&state=${state}#wechat_redirect`
+  
+  console.log('跳转到微信授权页面:', {
+    redirectUri,
+    encodedRedirectUri,
+    scope,
+    authUrl
   })
+  
+  window.location.href = authUrl
 }
 
-// 微信支付
-export const wechatPay = (payData) => {
+// 通过JS-SDK获取手机号（需要用户授权）
+export const getPhoneNumberBySDK = () => {
   return new Promise((resolve, reject) => {
-    if (typeof wx === 'undefined') {
-      reject(new Error('微信JS-SDK未加载'))
+    // 检查是否在微信环境中
+    if (!isWechatBrowser()) {
+      reject(new Error('不在微信环境中'))
       return
     }
 
-    wx.chooseWXPay({
-      timestamp: payData.timestamp,
-      nonceStr: payData.nonceStr,
-      package: payData.package,
-      signType: payData.signType,
-      paySign: payData.paySign,
+    // 检查JS-SDK是否加载
+    if (typeof wx === 'undefined') {
+      reject(new Error('微信JS-SDK未加载，请检查index.html中是否引入了jweixin.js'))
+      return
+    }
+
+    // 注意：微信H5网页无法直接获取手机号
+    // 手机号需要通过小程序接口（getPhoneNumber）获取
+    // 或者使用微信开放平台的手机号一键登录功能（需要特殊权限）
+    // 这里提供一个获取用户信息的接口，但可能不包含手机号
+    wx.getUserInfo({
       success: (res) => {
-        resolve(res)
+        // getUserInfo返回的是用户基本信息，不包含手机号
+        // 手机号需要通过其他方式获取
+        console.warn('getUserInfo无法获取手机号，需要通过其他方式')
+        resolve({
+          userInfo: res.userInfo,
+          phone: '' // 无法直接获取
+        })
       },
       fail: (err) => {
         reject(err)

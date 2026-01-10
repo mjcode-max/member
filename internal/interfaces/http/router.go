@@ -19,6 +19,12 @@ type appRouteRegistrar struct {
 	slotHandler        *handler.SlotHandler
 	authService        *auth.AuthService
 	logger             logger.Logger
+	authHandler   *handler.AuthHandler
+	userHandler   *handler.UserHandler
+	storeHandler  *handler.StoreHandler
+	memberHandler *handler.MemberHandler
+	authService   *auth.AuthService
+	logger        logger.Logger
 }
 
 // RegisterRoutes 注册所有应用路由
@@ -101,6 +107,9 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 	{
 		// 获取公开门店列表（供客户使用，默认只返回营业中的门店）
 		publicGroup.GET("/stores", r.storeHandler.GetPublicStoreList)
+
+		// 通过微信code换取openid并保存（公开接口，无需认证）
+		publicGroup.POST("/customer/wechat/login", r.userHandler.WechatLoginByCode)
 	}
 
 	// ==================== 门店管理相关路由 ====================
@@ -191,6 +200,57 @@ func (r *appRouteRegistrar) RegisterRoutes(api *gin.RouterGroup) {
 
 			// 重新计算时段容量（后台、店长）
 			slotsProtected.POST("/recalculate-capacity", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.slotHandler.RecalculateCapacity)
+	// ==================== 会员管理相关路由 ====================
+	membersGroup := api.Group("/members")
+	{
+		// 需要认证的路由组
+		membersProtected := membersGroup.Group("")
+		membersProtected.Use(httpInfra.AuthMiddleware(r.authService, r.logger))
+		{
+			// 创建会员（管理员、店长）
+			membersProtected.POST("", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.memberHandler.CreateMember)
+
+			// 获取会员列表（所有已认证用户）
+			// 后台可以查看所有会员，店长只能查看自己门店的会员
+			membersProtected.GET("", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.memberHandler.GetMemberList)
+
+			// 获取会员详情（所有已认证用户）
+			// 后台可以查看所有会员，店长只能查看自己门店的会员
+			membersProtected.GET("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician, user.RoleCustomer), r.memberHandler.GetMember)
+
+			// 根据手机号查询会员列表（所有已认证用户）
+			membersProtected.GET("/phone/:phone", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.memberHandler.GetMemberByPhone)
+
+			// 更新会员信息（管理员、店长）
+			// 后台可以更新所有会员，店长只能更新自己门店的会员
+			membersProtected.PUT("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.memberHandler.UpdateMember)
+
+			// 更新会员状态（管理员、店长）
+			membersProtected.PUT("/:id/status", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager), r.memberHandler.UpdateMemberStatus)
+
+			// 创建使用记录（管理员、店长、美甲师）
+			membersProtected.POST("/:id/usages", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.memberHandler.CreateUsage)
+
+			// 获取会员使用记录列表（不分页，管理员、店长、美甲师）
+			membersProtected.GET("/:id/usages", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.memberHandler.GetUsageByMemberID)
+		}
+	}
+
+	// ==================== 使用记录相关路由 ====================
+	usagesGroup := api.Group("/usages")
+	{
+		// 需要认证的路由组
+		usagesProtected := usagesGroup.Group("")
+		usagesProtected.Use(httpInfra.AuthMiddleware(r.authService, r.logger))
+		{
+			// 获取使用记录列表（不分页，管理员、店长、美甲师）
+			usagesProtected.GET("", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.memberHandler.GetUsageList)
+
+			// 获取使用记录详情（管理员、店长、美甲师）
+			usagesProtected.GET("/:id", httpInfra.RoleMiddleware(user.RoleAdmin, user.RoleStoreManager, user.RoleTechnician), r.memberHandler.GetUsage)
+
+			// 删除使用记录（仅管理员）
+			usagesProtected.DELETE("/:id", httpInfra.RoleMiddleware(user.RoleAdmin), r.memberHandler.DeleteUsage)
 		}
 	}
 }
@@ -202,6 +262,7 @@ func NewAppRouteRegistrar(
 	storeHandler *handler.StoreHandler,
 	templateHandler *handler.SlotTemplateHandler,
 	slotHandler *handler.SlotHandler,
+	memberHandler *handler.MemberHandler,
 	authService *auth.AuthService,
 	log logger.Logger,
 ) httpInfra.RouteRegistrar {
@@ -213,5 +274,11 @@ func NewAppRouteRegistrar(
 		slotHandler:    slotHandler,
 		authService:    authService,
 		logger:         log,
+		authHandler:   authHandler,
+		userHandler:   userHandler,
+		storeHandler:  storeHandler,
+		memberHandler: memberHandler,
+		authService:   authService,
+		logger:        log,
 	}
 }

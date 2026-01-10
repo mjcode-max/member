@@ -11,6 +11,7 @@ var WireHttpSet = wire.NewSet(
 	handler.NewStoreHandler,
 	handler.NewSlotTemplateHandler,
 	handler.NewSlotHandler,
+	handler.NewMemberHandler,
 	NewAppRouteRegistrar,
 	// 注意: NewUserHandler现在需要slotService参数
 )

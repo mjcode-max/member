@@ -6,6 +6,7 @@ package infrastructure
 import (
 	"github.com/google/wire"
 	"member-pre/internal/infrastructure/config"
+	"member-pre/internal/infrastructure/face"
 	httpInfra "member-pre/internal/infrastructure/http"
 	infraLogger "member-pre/internal/infrastructure/logger"
 	"member-pre/internal/infrastructure/persistence"
@@ -39,6 +40,7 @@ func InitializeApp(cfgPath ConfigPath) (*App, error) {
 		persistence.NewClient,
 		repository.WireRepoSet, // Repository需要logger
 		domain.WireDoMainSet,   // Domain需要logger和配置值
+		face.WireFaceSet,       // Face服务需要配置和logger
 		http.WireHttpSet,       // Handler需要logger和RouteRegistrar
 		// 提供RouteRegistrar切片（直接收集所有RouteRegistrar）
 		ProvideRouteRegistrars,
@@ -48,6 +50,20 @@ func InitializeApp(cfgPath ConfigPath) (*App, error) {
 		NewApp,
 	)
 	return &App{}, nil
+}
+
+// InitializeAppForMigration 初始化应用（用于迁移，Redis连接失败时不阻止）
+func InitializeAppForMigration(cfgPath ConfigPath) (*MigrationApp, error) {
+	wire.Build(
+		// 基础设施层
+		LoadConfig,
+		NewLogger,
+		database.NewDatabase,
+		persistence.NewClientOptional, // 使用可选Redis客户端
+		// 应用（迁移专用）
+		NewMigrationApp,
+	)
+	return &MigrationApp{}, nil
 }
 
 // NewLogger 创建日志实例，直接返回logger.Logger接口
@@ -94,5 +110,28 @@ func NewApp(
 		DB:     db,
 		Redis:  rdb,
 		Server: srv,
+	}
+}
+
+// MigrationApp 迁移专用应用结构（不需要Redis和Server）
+type MigrationApp struct {
+	Config *config.Config
+	Logger pkgLogger.Logger
+	DB     database.Database
+	Redis  *persistence.Client // 可能为nil
+}
+
+// NewMigrationApp 创建迁移专用应用实例
+func NewMigrationApp(
+	cfg *config.Config,
+	log pkgLogger.Logger,
+	db database.Database,
+	rdb *persistence.Client, // 可能为nil
+) *MigrationApp {
+	return &MigrationApp{
+		Config: cfg,
+		Logger: log,
+		DB:     db,
+		Redis:  rdb,
 	}
 }
